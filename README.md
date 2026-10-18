@@ -15,6 +15,13 @@ the gradient descent family, ridge, lasso and Bayesian linear regression.
 ```
 assignment.pdf               the handout
 data/                        the six provided CSVs (columns x,y), used as given
+src/common/                  data loading, bases (monomial, Legendre), solvers, metrics, plot style
+src/p1.py ... src/p4.py      one module per problem: compute() for the numbers, figures() for the plots
+src/run.py                   runs the problems and writes results/ and figures/
+src/report_numbers.py        results/*.json -> results/numbers.tex, the numbers the report quotes
+results/                     p1.json ... p4.json: every reported number (written by src.run)
+figures/                     every figure as PDF (for the report) and PNG (written by src.run)
+tests/                       hand-worked checks of the solvers and of each problem's maths
 pyproject.toml, uv.lock      dependencies; .python-version pins Python 3.12
 ```
 
@@ -46,3 +53,14 @@ p4_train_N{5,10,20,50}.csv   x evenly spaced, noise variance 0.01  P4
 ```
 
 The data is fixed: nothing in this repo generates or modifies it. sin(2πx) appears only in plots.
+
+## 4. Running
+
+```bash
+uv run python -m src.run              # all four problems, about 10 s
+uv run python -m src.run p2 p3        # some of them
+```
+
+Each problem writes `results/<p>.json` and its figures; `results/numbers.tex` is rebuilt from
+whatever JSON is present. The shuffling in P1 uses seed 42, and PDFs carry no timestamp, so a
+rerun on the same data reproduces every file byte for byte.
