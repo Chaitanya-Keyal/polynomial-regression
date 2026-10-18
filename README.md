@@ -22,6 +22,8 @@ src/report_numbers.py        results/*.json -> results/numbers.tex, the numbers 
 results/                     p1.json ... p4.json: every reported number (written by src.run)
 figures/                     every figure as PDF (for the report) and PNG (written by src.run)
 tests/                       hand-worked checks of the solvers and of each problem's maths
+report/report.tex            the write-up; numbers and figures come in from results/ and figures/
+notebooks/demo.ipynb         the demo: each problem's figures and key numbers, by calling src/
 pyproject.toml, uv.lock      dependencies; .python-version pins Python 3.12
 ```
 
@@ -64,3 +66,14 @@ uv run python -m src.run p2 p3        # some of them
 Each problem writes `results/<p>.json` and its figures; `results/numbers.tex` is rebuilt from
 whatever JSON is present. The shuffling in P1 uses seed 42, and PDFs carry no timestamp, so a
 rerun on the same data reproduces every file byte for byte.
+
+## 5. Report and demo
+
+```bash
+cd report && latexmk -pdf report.tex                   # report.pdf
+uv run --group notebook jupyter lab notebooks/demo.ipynb
+```
+
+The report reads every number through `\res{key}` from `results/numbers.tex`, so rerunning
+`src.run` and rebuilding updates it; a number that has not been computed yet prints as **??**.
+The notebook has no logic of its own: it calls the same `compute()` and `figures()` as `src.run`.
