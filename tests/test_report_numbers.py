@@ -32,6 +32,7 @@ def test_lam_uses_powers_of_ten_on_the_grid():
     assert rn.lam(1e-10) == "10^{-10}"
     assert rn.lam(0.01) == "10^{-2}"
     assert rn.lam(5.62341325190349e-07) == r"5.62 \times 10^{-7}"
+    assert rn.lam(0.15848931924611143) == r"1.58 \times 10^{-1}"
 
 
 def test_vec_and_given():
@@ -47,5 +48,5 @@ def test_report_keys_are_all_generated():
     results = ROOT / "results"
     if not report.exists() or not (results / "p4.json").exists():
         pytest.skip("needs report/report.tex and a full run's results/")
-    used = set(re.findall(r"\\res\{([^}]+)\}", report.read_text()))
+    used = set(re.findall(r"\\res(?:rows)?\{([^}]+)\}", report.read_text()))
     assert used - set(rn.macros(results)) == set()

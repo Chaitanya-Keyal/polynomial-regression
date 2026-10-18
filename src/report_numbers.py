@@ -31,11 +31,13 @@ def given(v):
 
 
 def lam(v):
-    """A grid value of lambda, as 10^{k} when it is an exact power of ten."""
+    """A grid value of lambda: 10^{k} for an exact power of ten, otherwise m \\times 10^{k}, so
+    every lambda in a column reads the same way."""
     k = math.log10(v)
     if abs(k - round(k)) < 1e-9:
         return f"10^{{{round(k)}}}"
-    return num(v)
+    mantissa, exp = f"{v:.2e}".split("e")
+    return rf"{mantissa} \times 10^{{{int(exp)}}}"
 
 
 def vec(values, sig=3, fixed=None):
@@ -53,11 +55,15 @@ def p1_macros(n):
         "p1-cond-phi": num(n["cond_phi"]),
         "p1-cond-q": num(n["cond_q"], 4),
         "p1-wclosed-norm": num(n["w_closed_norm"]),
-        "p1-wclosed": vec(n["closed"]["9"]["w"]),
+        "p1-w-rows": " ".join(
+            rf"{j} & ${num(wc)}$ & ${num(w100)}$ \\"
+            for j, (wc, w100) in enumerate(
+                zip(n["closed"]["9"]["w"], n["lr"]["too large"]["w_100"], strict=True)
+            )
+        ),
         "p1-sgd-gap-abs": num(n["sgd_vs_batch"]["max_abs_diff"], 2),
         "p1-sgd-gap-rel": num(n["sgd_vs_batch"]["max_rel_diff_while_E_above_1e-10"], 2),
         "p1-lr-ratio": num(n["divergent_w_over_w_closed"], 5),
-        "p1-lr-large-w": vec(n["lr"]["too large"]["w_100"]),
     }
     for v, data in n["verification"].items():
         m[f"p1-{v}-abs"] = num(data["abs_err"])

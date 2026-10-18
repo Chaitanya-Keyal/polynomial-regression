@@ -1,0 +1,480 @@
+\documentclass[11pt,a4paper]{article}
+
+\usepackage[margin=2.2cm]{geometry}
+\usepackage[T1]{fontenc}
+\usepackage{lmodern}
+\usepackage{microtype}
+\usepackage{amsmath,amssymb,bm}
+\usepackage{booktabs}
+\usepackage{graphicx}
+\usepackage{caption}
+\usepackage{float}
+\usepackage{xcolor}
+\usepackage{enumitem}
+\usepackage[hidelinks]{hyperref}
+\usepackage{xurl}
+
+\captionsetup{font=small,labelfont=bf}
+\setlist{nosep}
+
+% Numbers come from results/numbers.tex, written by `python -m src.run`. A key that is not
+% defined yet prints a bold ??, so the report compiles before the data exists.
+\makeatletter
+\newcommand{\resdef}[2]{\@namedef{res@#1}{#2}}
+\newcommand{\res}[1]{\@ifundefined{res@#1}{\textbf{??}}{\@nameuse{res@#1}}}
+\newcommand{\resrows}[1]{\@ifundefined{res@#1}{\textbf{??} \\}{\@nameuse{res@#1}}}% table rows
+\newcommand{\fig}[2][\linewidth]{%
+  \IfFileExists{../figures/#2.pdf}%
+    {\includegraphics[width=#1]{../figures/#2.pdf}}%
+    {\fbox{\parbox[c][4cm][c]{0.8\linewidth}{\centering\ttfamily\detokenize{#2}.pdf\\(run python -m src.run)}}}}
+\makeatother
+\InputIfFileExists{../results/numbers.tex}{}{}
+
+% Sentences that depend on the real data: checked against the final results, then unwrapped.
+\newcommand{\data}[1]{\textcolor{red}{[#1]}}
+
+\newcommand{\w}{\mathbf{w}}
+\newcommand{\T}{\top}
+\newcommand{\Phib}{\bm{\Phi}}
+\newcommand{\tb}{\mathbf{t}}
+\newcommand{\norm}[1]{\lVert #1 \rVert}
+
+\title{\vspace{-1.5cm}CS F320 Foundations of Data Science\\[2pt]
+  \Large Assignment 1: Polynomial, Ridge, Lasso and Bayesian Regression}
+\author{%
+  \begin{tabular}{ll}
+    Chaitanya Keyal & 2023B4A70727H \\
+    Abhishek Verma & 2023B4A71256H \\
+    Palash Jain & 2023A2B51271H
+  \end{tabular}}
+\date{October 2026}
+
+\begin{document}
+\maketitle
+
+\section*{Implementation}
+
+Everything is written from scratch in Python~3.12 with NumPy~2.5 for linear algebra and
+Matplotlib~3.11 for plots; no fitting library is used. The code is at
+\url{https://github.com/Chaitanya-Keyal/polynomial-regression}: \texttt{src/p1.py} to
+\texttt{src/p4.py} hold one problem each, \texttt{src/common/} the shared bases and solvers, and
+\texttt{python -m src.run} regenerates every figure and every number in this report from the
+six provided CSV files, which are loaded as given. $\sin(2\pi x)$ appears only in plots. The
+random seed for the per-epoch shuffling in P1 is $\res{p1-seed}$ (a fresh
+\texttt{np.random.default\_rng(\res{p1-seed})} per run), so every result is reproducible to the
+last digit. No explicit matrix inverse is formed anywhere: least squares uses the SVD-based
+\texttt{np.linalg.lstsq}, ridge a linear solve, and the Bayesian posterior a Cholesky factor.
+RMSE is $\sqrt{\text{mean squared error}}$ throughout.
+
+%==============================================================================================
+\section{P1: Closed form vs.\ the gradient descent family}
+
+\paragraph{Method.}
+The degree-$d$ model $y(x,\w) = \sum_{j=0}^{d} w_j x^j$ has design matrix
+$\Phib \in \mathbb{R}^{N\times(d+1)}$ with rows $[1, x_n, \dots, x_n^d]$ and objective
+$E(\w) = \frac12\norm{\Phib\w - \tb}^2$. The closed-form minimiser solves
+$\Phib^\T\Phib\w = \Phib^\T\tb$, but for $d = 9$ we have $\mathrm{cond}(\Phib) = \res{p1-cond-phi}$,
+and forming $\Phib^\T\Phib$ would square that to about $10^{14}$. We therefore solve the least
+squares problem directly with \texttt{np.linalg.lstsq}, which works through the SVD of $\Phib$.
+
+For gradient descent we take the thin QR decomposition $\Phib = QR$, set $\bm\alpha = R\w$ and
+minimise $E(\bm\alpha) = \frac12\norm{Q\bm\alpha - \tb}^2$ from $\bm\alpha = \mathbf 0$, then recover
+$\w = R^{-1}\bm\alpha$ by a solve with the triangular $R$ ($\mathrm{cond}(Q) = \res{p1-cond-q}$).
+With $\mathbf q_n^\T$ the $n$-th row of $Q$ and $r_n = \mathbf q_n^\T\bm\alpha - t_n$ its residual,
+one epoch is
+\begin{itemize}
+  \item \textbf{Batch GD}: one step $\bm\alpha \leftarrow \bm\alpha - \eta\, Q^\T(Q\bm\alpha - \tb)$,
+        the full sum, not divided by $N$;
+  \item \textbf{Stochastic GD}: shuffle, then for each $n$ in turn
+        $\bm\alpha \leftarrow \bm\alpha - \eta\, r_n \mathbf q_n$ ($N = 10$ updates);
+  \item \textbf{Mini-batch GD}: shuffle, then for each batch $B$ of the shuffled order (sizes
+        3, 3, 3, 1) $\bm\alpha \leftarrow \bm\alpha - \frac{\eta}{|B|}\sum_{n\in B} r_n\mathbf q_n$
+        (4 updates).
+\end{itemize}
+
+\paragraph{Closed-form fits.} Figure~\ref{fig:p1-fits} shows the least-squares fits for
+$d = 1,\dots,9$ and Table~\ref{tab:p1-closed} their training error. The models are nested, so
+the training error can only fall as $d$ grows; at $d = 9$ there are as many weights as points
+and the polynomial interpolates the data ($E \approx 0$).
+\data{Low degrees underfit; the fits around $d = 3$ to $5$ follow $\sin(2\pi x)$ closely; the
+highest degrees bend between the points to pass through the noise, most visibly near the ends.}
+
+\begin{figure}[H]
+  \centering\fig[0.92\linewidth]{p1_fits}
+  \caption{Least-squares polynomial fits of degree 1 to 9 to the $N = \res{p1-N}$ training
+    points, with the true function $\sin(2\pi x)$.}
+  \label{fig:p1-fits}
+\end{figure}
+
+\begin{table}[H]
+  \centering\small
+  \begin{tabular}{rcc}
+    \toprule
+    $d$ & training $E(\w)$ & training RMSE \\
+    \midrule
+    \resrows{p1-closed-rows}
+    \bottomrule
+  \end{tabular}
+  \caption{Training error of the closed-form fits.}
+  \label{tab:p1-closed}
+\end{table}
+
+\paragraph{Loss curves.} Figure~\ref{fig:p1-loss} shows $E$ per epoch for the three variants at
+$d = 9$ and $\eta = \res{p1-eta}$, until every curve has flattened at the floating-point floor.
+Batch and Stochastic GD reach $E < 10^{-12}$ after $\res{p1-batch-epochs12}$ and
+$\res{p1-sgd-epochs12}$ epochs, Mini-batch GD after $\res{p1-minibatch-epochs12}$; the average
+factor by which $E$ shrinks per epoch over the first 100 epochs is $\res{p1-batch-factor}$,
+$\res{p1-sgd-factor}$ and $\res{p1-minibatch-factor}$.
+
+\begin{figure}[H]
+  \centering\fig[0.8\linewidth]{p1_loss}
+  \caption{$E$ vs.\ epoch for Batch, Stochastic and Mini-batch GD ($d = 9$,
+    $\eta = \res{p1-eta}$, seed $\res{p1-seed}$). The SGD curve (dashed) lies on the Batch
+    curve.}
+  \label{fig:p1-loss}
+\end{figure}
+
+\paragraph{Learning-rate study.} In the QR coordinates the Hessian of $E$ is $Q^\T Q = I$, so
+every eigenvalue is 1 and Batch GD gives $\bm\alpha_k - \bm\alpha^\star = (1-\eta)^k(\bm\alpha_0 -
+\bm\alpha^\star)$ and $E_k = (1-\eta)^{2k}E_0$ with $E_0 = \frac12\norm{\tb}^2 = \res{p1-lr-good-E0}$.
+GD converges exactly when $|1-\eta| < 1$, i.e.\ $0 < \eta < 2$, fastest at $\eta = 1$ (one epoch).
+Figure~\ref{fig:p1-lr} shows the three regimes over 100 epochs:
+\begin{itemize}
+  \item $\eta = \res{p1-lr-small-eta}$ (too small): $E$ shrinks by only $0.99^2$ per epoch and is
+        still $\res{p1-lr-small-E100}$ after 100 epochs;
+  \item $\eta = \res{p1-lr-good-eta}$ (well chosen): $E$ falls by $0.25$ per epoch and reaches
+        the floating-point floor ($E_{100} = \res{p1-lr-good-E100}$);
+  \item $\eta = \res{p1-lr-large-eta}$ (too large): $|1-\eta| = 1.1$, so the error flips sign and
+        grows by $1.1$ every epoch. After 100 epochs $E = \res{p1-lr-large-E100}$, which is
+        $1.1^{200}E_0$, and $\bm\alpha_{100} = (1 - 1.1^{100})\bm\alpha^\star$, so the weight vector
+        is $\res{p1-lr-ratio}$ times the closed-form solution (Table~\ref{tab:p1-w}).
+\end{itemize}
+At exactly $\eta = 2$ the factor is $-1$: $\bm\alpha$ alternates between $\mathbf 0$ and
+$2\bm\alpha^\star$, each step overshooting the minimum by exactly as much as it started from it,
+and $E$ stays at $E_0$ forever (dashed line; $E_{100} = \res{p1-lr-edge-E100}$). It neither
+converges nor diverges.
+
+\begin{table}[H]
+  \centering\small
+  \begin{tabular}{rcc}
+    \toprule
+    $j$ & $w_{closed,j}$ & $w_{100,j}$ at $\eta = \res{p1-lr-large-eta}$ \\
+    \midrule
+    \resrows{p1-w-rows}
+    \bottomrule
+  \end{tabular}
+  \caption{The closed-form weights for $d = 9$, and the weights Batch GD reaches after 100 epochs
+    with $\eta = \res{p1-lr-large-eta}$: the same vector scaled by $1 - 1.1^{100}$.}
+  \label{tab:p1-w}
+\end{table}
+
+\begin{figure}[H]
+  \centering\fig[0.9\linewidth]{p1_lr}
+  \caption{Batch GD ($d = 9$, QR-reparametrised) for a learning rate that is too small, well
+    chosen and too large, and at the stability limit $\eta = 2$.}
+  \label{fig:p1-lr}
+\end{figure}
+
+\paragraph{Verification.} After $\res{p1-epochs}$ epochs at $\eta = \res{p1-eta}$:
+
+\begin{table}[H]
+  \centering\small
+  \begin{tabular}{lccc}
+    \toprule
+    variant & $\norm{\w_{GD} - \w_{closed}}_2$ & relative error & final $E$ \\
+    \midrule
+    Batch GD & $\res{p1-batch-abs}$ & $\res{p1-batch-rel}$ & $\res{p1-batch-final}$ \\
+    Stochastic GD & $\res{p1-sgd-abs}$ & $\res{p1-sgd-rel}$ & $\res{p1-sgd-final}$ \\
+    Mini-batch GD & $\res{p1-minibatch-abs}$ & $\res{p1-minibatch-rel}$ & $\res{p1-minibatch-final}$ \\
+    \bottomrule
+  \end{tabular}
+  \caption{GD against the closed form, $d = 9$; $\norm{\w_{closed}}_2 = \res{p1-wclosed-norm}$.}
+  \label{tab:p1-verify}
+\end{table}
+
+The weights are large (Table~\ref{tab:p1-w}), so an absolute error of this size is a
+relative error of order $10^{-10}$: all three variants agree with the closed form to the precision
+the problem allows. The three errors are nearly identical because they are not optimisation
+error (every $E$ is at the floor) but the rounding left after mapping $\bm\alpha$ back through
+$R^{-1}$: $\mathrm{cond}(R) = \mathrm{cond}(\Phib) \approx 10^7$ magnifies the $10^{-16}$ relative
+rounding in $\bm\alpha$, and \texttt{lstsq} carries rounding of the same kind.
+
+\paragraph{Discussion.} In Figure~\ref{fig:p1-loss} the SGD curve coincides with the Batch curve
+(they never differ by more than $\res{p1-sgd-gap-abs}$, rounding), while Mini-batch GD is clearly
+slower. (i)~With $N = d + 1 = 10$ the thin $Q$ is square and orthogonal, so its \emph{rows} are
+orthonormal too. An SGD step on point $n$ changes residual $r_m$ by $-\eta r_n\mathbf q_m^\T
+\mathbf q_n$, which is zero for $m \ne n$: it multiplies $r_n$ by $(1-\eta)$ and leaves every other
+residual untouched. After one pass, in any order, every residual has been multiplied by
+$(1-\eta)$ exactly once, which is precisely one Batch step (with $QQ^\T = I$, a Batch step is
+$\mathbf r \leftarrow \mathbf r - \eta QQ^\T\mathbf r = (1-\eta)\mathbf r$), so the shuffle cannot
+matter. (ii)~Mini-batch GD
+\emph{averages} over its batch, so the same argument gives a factor $(1-\eta/3)$ for the nine
+points in full batches and $(1-\eta)$ only for the singleton: $E$ shrinks by about
+$(1-\eta/3)^2 \approx 0.93$ per epoch (measured $\res{p1-minibatch-factor}$) instead of
+$(1-\eta)^2 = 0.81$, so it needs roughly three times as many epochs.
+
+%==============================================================================================
+\section{P2: Ridge regression as a MAP estimate}
+
+\paragraph{MAP $\Rightarrow$ ridge.} By Bayes' rule $p(\w\mid\tb) \propto p(\tb\mid\w)\,p(\w)$ with
+$p(\tb\mid\w) \propto \exp(-\frac\beta2\norm{\Phib\w - \tb}^2)$ and
+$p(\w) \propto \exp(-\frac\alpha2\norm{\w}^2)$. Taking $-\log$ and dividing by $\beta$, maximising
+the posterior is minimising
+\[ \tilde E(\w) = \tfrac12\norm{\Phib\w - \tb}^2 + \tfrac\lambda2\norm{\w}^2, \qquad \lambda = \alpha/\beta . \]
+Setting $\nabla\tilde E = \Phib^\T(\Phib\w - \tb) + \lambda\w = \mathbf 0$ gives
+$(\Phib^\T\Phib + \lambda I)\w = \Phib^\T\tb$. For $\lambda > 0$ the matrix is symmetric positive
+definite, so the solution is unique; we solve the system directly for every $\lambda$ in the grid
+(49 values from $10^{-10}$ to $10^{2}$), in the $d = 9$ monomial basis of P1.
+
+\paragraph{GD at $\lambda = \res{p2-gd-lam}$.} Plain batch GD in the monomial basis,
+$\w \leftarrow \w - \eta\,(\Phib^\T(\Phib\w - \tb) + \lambda\w)$ from $\w = \mathbf 0$ with
+$\eta = \res{p2-gd-eta}$, reached $\norm{\w_{GD} - \w_{closed}}/\norm{\w_{closed}} < 10^{-6}$ after
+$\res{p2-gd-iters}$ iterations (Figure~\ref{fig:p2-gd}); the final objective
+$\res{p2-gd-obj}$ matches the closed form's $\res{p2-gd-obj-closed}$. The step is stable because
+$\eta < 2/\lambda_{\max}(\Phib^\T\Phib + \lambda I) = \res{p2-gd-limit}$, and the convergence rate is
+set by the smallest eigenvalue, which is about $\lambda$: the slowest direction shrinks by
+$1 - \eta\lambda = 0.9996$ per step. Here $\mathrm{cond}(\Phib^\T\Phib) = \res{p2-cond-before}$ and
+$\mathrm{cond}(\Phib^\T\Phib + \lambda I) = \res{p2-cond-after}$: the penalty adds $\lambda$ to every
+eigenvalue, lifting the smallest from almost zero to about $\lambda$, which cuts the condition
+number by about eleven orders of magnitude and is what makes plain GD in this basis practical.
+
+\begin{figure}[H]
+  \centering\fig[0.95\linewidth]{p2_gd}
+  \caption{Batch GD on the ridge objective at $\lambda = \res{p2-gd-lam}$: $\tilde E(\w)$ per
+    iteration (left) and the relative distance to the closed-form solution (right).}
+  \label{fig:p2-gd}
+\end{figure}
+
+\paragraph{RMSE sweep and $\lambda^\star$.} Figure~\ref{fig:p2-rmse} shows train and test RMSE
+over the grid. The test RMSE is smallest at $\lambda^\star = \res{p2-lamstar}$, where it is
+$\res{p2-test-star}$ (train $\res{p2-train-star}$), and it stays within $1.05\times$ its minimum
+for $\lambda \in [\res{p2-flat-lo}, \res{p2-flat-hi}]$ ($\res{p2-flat-n}$ grid points).
+\data{The minimum is flat: the test error barely changes across several decades of $\lambda$, so
+the exact choice inside the interval hardly matters. Below the interval the penalty is too weak
+and the degree-9 polynomial chases the noise (train RMSE well under the noise level 0.1, test
+RMSE above it); above it the penalty shrinks the weights too far and train and test RMSE rise
+together as the fit flattens toward a constant.}
+
+\begin{figure}[H]
+  \centering\fig[0.8\linewidth]{p2_rmse}
+  \caption{Train and test RMSE of ridge regression ($d = 9$) vs.\ $\lambda$. The shaded band is
+    where the test RMSE is within $1.05\times$ its minimum; the dashed line is the noise level
+    $\sqrt{0.01} = 0.1$.}
+  \label{fig:p2-rmse}
+\end{figure}
+
+\paragraph{Fitted curves.} Figure~\ref{fig:p2-fits} shows the fits at the three values of
+$\lambda$:
+
+\begin{table}[H]
+  \centering\small
+  \begin{tabular}{lcccc}
+    \toprule
+    & $\lambda$ & $\norm{\w}_2$ & train RMSE & test RMSE \\
+    \midrule
+    overfit & $\res{p2-overfit-lam}$ & $\res{p2-overfit-wnorm}$ & $\res{p2-overfit-train}$ & $\res{p2-overfit-test}$ \\
+    $\lambda^\star$ & $\res{p2-best-lam}$ & $\res{p2-best-wnorm}$ & $\res{p2-best-train}$ & $\res{p2-best-test}$ \\
+    underfit & $\res{p2-underfit-lam}$ & $\res{p2-underfit-wnorm}$ & $\res{p2-underfit-train}$ & $\res{p2-underfit-test}$ \\
+    \bottomrule
+  \end{tabular}
+  \caption{The three ridge fits of Figure~\ref{fig:p2-fits}.}
+  \label{tab:p2-fits}
+\end{table}
+
+\data{The weight norm falls by orders of magnitude from the overfit to the underfit model: the
+penalty buys smoothness by forbidding the large, cancelling coefficients an interpolating
+polynomial needs.}
+
+\begin{figure}[H]
+  \centering\fig{p2_fits}
+  \caption{Ridge fits ($d = 9$) for a very small $\lambda$, for $\lambda^\star$ and for
+    $\lambda = 10^{-2}$, with the training data and $\sin(2\pi x)$.}
+  \label{fig:p2-fits}
+\end{figure}
+
+%==============================================================================================
+\section{P3: L1-regularised regression via subgradient descent}
+
+\paragraph{Method.} With $u = 2x - 1$, the design matrix is $\Phi_{nj} = P_j(u_n)$,
+$j = 0, \dots, 9$, built from the recurrence $(j+1)P_{j+1} = (2j+1)uP_j - jP_{j-1}$ (checked
+against \texttt{legvander}). It spans the same degree-9 polynomials as the monomial basis, but
+$\mathrm{cond}(\Phib^\T\Phib) = \res{p3-cond}$ instead of about $10^{14}$. Subgradient descent on
+$E(\w) = \frac12\norm{\Phib\w - \tb}^2 + \lambda\norm{\w}_1$ runs
+$\w \leftarrow \w - \eta\,(\Phib^\T(\Phib\w - \tb) + \lambda\,\mathrm{sign}(\w))$ with
+$\mathrm{sign}(0) = 0$, $\eta = \res{p3-eta}$ (below the limit $2/\lambda_{\max} = \res{p3-limit}$
+of the smooth part), from $\w = \mathbf 0$ for $\res{p3-iters}$ iterations at each of the 21 values
+of $\lambda$ from $10^{-4}$ to $1$. Every reported quantity comes from the final iterate, and a
+coefficient counts as $\approx 0$ when $|w_j| < 2\eta\lambda$, since with a constant step a zero
+coefficient chatters around 0 with amplitude about $\eta\lambda$.
+
+\paragraph{Convergence and verification at $\lambda = \res{p3-check-lam}$.}
+Figure~\ref{fig:p3-conv} shows $E$ and the best $E$ so far. Subgradient descent is not a descent
+method: once near the optimum, the $\mathrm{sign}$ term flips for the coefficients at zero and $E$
+rises and falls \data{by about $10^{-3}$} (right panel), while the best-so-far $E$ keeps creeping
+down.
+The final iterate has $E = \res{p3-check-E}$ (best $\res{p3-check-Ebest}$; reference
+$E^\star = \res{p3-check-Eref}$) and
+\begin{align*}
+  \w &= \res{p3-check-w},\\
+  \w^\star &= \res{p3-check-wref},
+\end{align*}
+$\norm{\w - \w^\star}_2 = \res{p3-check-wdiff}$. The optimality conditions hold: over the
+$\res{p3-opt-nactive}$ coefficients that are not $\approx 0$,
+$\max_j |\Phib_j^\T\mathbf r - \lambda\,\mathrm{sign}(w_j)| = \res{p3-opt-active}$, and over the
+$\res{p3-opt-nzero}$ that are, $\max_j |\Phib_j^\T\mathbf r|/\lambda = \res{p3-opt-zero} \le 1$, with
+$\mathbf r = \tb - \Phib\w$. As an independent check we also solved this Lasso problem exactly by
+coordinate descent with soft-thresholding (the method behind the reference): it gives
+$E = \res{p3-check-Ecd}$, $\norm{\w_{CD} - \w^\star}_2 = \res{p3-check-cddiff}$ (the reference is
+rounded to three decimals) and $\norm{\w - \w_{CD}}_2 = \res{p3-check-wcd-diff}$, the size of the
+$\eta\lambda$ chatter.
+
+\begin{figure}[H]
+  \centering\fig[0.95\linewidth]{p3_convergence}
+  \caption{Subgradient descent at $\lambda = \res{p3-check-lam}$: $E$ and the best $E$ so far
+    (left), and their gap to the exact optimum $E_{opt}$ from coordinate descent (right).}
+  \label{fig:p3-conv}
+\end{figure}
+
+\paragraph{RMSE sweep and $\lambda^\star$.} Figure~\ref{fig:p3-rmse} shows train and test RMSE.
+The test RMSE is smallest at $\lambda^\star = \res{p3-lamstar}$, where it is $\res{p3-test-star}$;
+there $\res{p3-nzero-star}$ coefficients are $\approx 0$, with indices $j \in
+\{\res{p3-zero-idx-star}\}$.
+
+\begin{figure}[H]
+  \centering\fig[0.8\linewidth]{p3_rmse}
+  \caption{Train and test RMSE of the Lasso (Legendre basis) vs.\ $\lambda$, with the noise level
+    0.1.}
+  \label{fig:p3-rmse}
+\end{figure}
+
+\paragraph{Coefficient path.} Figure~\ref{fig:p3-path} shows every $w_j$ against $\lambda$, and
+Table~\ref{tab:p3-zeros} how many are $\approx 0$ at each $\lambda$.
+
+\begin{figure}[H]
+  \centering\fig{p3_path}
+  \caption{Lasso coefficient path. The grey band is $|w_j| < 2\eta\lambda$; hollow markers are
+    coefficients counted as $\approx 0$.}
+  \label{fig:p3-path}
+\end{figure}
+
+\begin{table}[H]
+  \centering\small
+  \begin{tabular}{cclcc}
+    \toprule
+    $\lambda$ & \# $\approx 0$ & indices $j$ & train RMSE & test RMSE \\
+    \midrule
+    \resrows{p3-zero-rows}
+    \bottomrule
+  \end{tabular}
+  \caption{Coefficients counted as $\approx 0$ ($|w_j| < 2\eta\lambda$) at each $\lambda$.}
+  \label{tab:p3-zeros}
+\end{table}
+
+\paragraph{Lasso vs.\ Ridge.} Ridge in the same Legendre basis, solved in closed form on the same
+grid, has its best test RMSE at $\lambda = \res{p3-ridge-lam}$:
+
+\begin{table}[H]
+  \centering\small
+  \begin{tabular}{lcccc}
+    \toprule
+    & best $\lambda$ & test RMSE & $\norm{\w}_2$ & \# $|w_j| < 0.01$ \\
+    \midrule
+    Lasso & $\res{p3-lasso-lam}$ & $\res{p3-lasso-test}$ & $\res{p3-lasso-wnorm}$ & \res{p3-lasso-nsmall} \\
+    Ridge & $\res{p3-ridge-lam}$ & $\res{p3-ridge-test}$ & $\res{p3-ridge-wnorm}$ & \res{p3-ridge-nsmall} \\
+    \bottomrule
+  \end{tabular}
+  \caption{Lasso and Ridge, each at its own best $\lambda$ (Legendre basis, $d = 9$).
+    Lasso: $\w = \res{p3-lasso-w}$; Ridge: $\w = \res{p3-ridge-w}$.}
+  \label{tab:p3-vs}
+\end{table}
+
+\begin{figure}[H]
+  \centering\fig[0.8\linewidth]{p3_fits}
+  \caption{The Lasso fit at $\lambda^\star$ and the Ridge fit at its own best $\lambda$, with the
+    training data and $\sin(2\pi x)$.}
+  \label{fig:p3-fits}
+\end{figure}
+
+\paragraph{Discussion.} L1 produces exact zeros because the subgradient of $|w_j|$ at 0 is the
+whole interval $[-1, 1]$: $w_j = 0$ is optimal whenever $|\Phib_j^\T\mathbf r| \le \lambda$, so any
+feature whose correlation with the residual falls below the finite threshold $\lambda$ is switched
+off entirely, and as $\lambda$ grows more coefficients cross that threshold one after another
+(Figure~\ref{fig:p3-path}, Table~\ref{tab:p3-zeros}). The L2 penalty's gradient $\lambda w_j$
+vanishes at 0, so it pulls each coefficient toward zero in proportion to its size and never
+finishes the job; geometrically, the SSE contours meet the $\ell_1$ ball at a corner on an axis,
+but meet the round $\ell_2$ ball away from the axes. Which coefficients go first is predictable
+here: $\sin(2\pi x) = -\sin(\pi u)$ is odd in $u = 2x - 1$, so only the odd polynomials $P_1, P_3,
+P_5, \dots$ carry signal, and the even coefficients fit noise alone (the reference $\w^\star$ has
+$w_0 = w_6 = w_8 = 0$ and small $w_2, w_4$). Table~\ref{tab:p3-vs} shows the result:
+\data{at similar weight norms, Lasso has \res{p3-lasso-nsmall} coefficients below 0.01 and Ridge
+\res{p3-ridge-nsmall}}. As $\lambda$ grows past $\lambda^\star$, the penalty starts removing
+coefficients that carry signal: the train RMSE keeps rising and the test RMSE turns upward with
+it, as bias replaces variance as the main error, until at large $\lambda$ \data{only the
+coefficients of $P_1$ and $P_3$, which together carry most of $\sin(2\pi x)$, survive}.
+
+%==============================================================================================
+\section{P4: Bayesian regression}
+
+\paragraph{Method.} With $\bm\phi(x) = [1, x, x^2, x^3]^\T$, prior $\mathcal N(\mathbf 0,
+\alpha^{-1}I)$ and noise precision $\beta$, the posterior is $\mathcal N(\w\mid\mathbf m_N, S_N)$
+with $S_N^{-1} = \alpha I + \beta\Phib^\T\Phib$ and $\mathbf m_N = \beta S_N\Phib^\T\tb$, and the
+predictive distribution is $\mathcal N(m(x), s^2(x))$ with $m(x) = \bm\phi(x)^\T\mathbf m_N$ and
+$s^2(x) = \beta^{-1} + \bm\phi(x)^\T S_N\bm\phi(x)$. We use $\alpha = \res{p4-alpha}$,
+$\beta = 1/0.01 = \res{p4-beta}$, for every $N$. $S_N$ is never formed: we factor
+$S_N^{-1} = LL^\T$ (Cholesky), get $\mathbf m_N$ from two triangular solves, and
+$\bm\phi^\T S_N\bm\phi = \norm{L^{-1}\bm\phi}^2$.
+
+\paragraph{Equivalence.} Since $\mathbf m_N = \beta(\alpha I + \beta\Phib^\T\Phib)^{-1}\Phib^\T\tb
+= (\Phib^\T\Phib + \tfrac\alpha\beta I)^{-1}\Phib^\T\tb$, the posterior mean is exactly the ridge
+solution with $\lambda = \alpha/\beta = \res{p4-lam}$; a Gaussian posterior's mean is also its
+mode, so MAP and posterior mean coincide, and so do $\w_{MAP}^\T\bm\phi(x)$ and $m(x)$. Numerically,
+for $N = 10$, $\mathbf m_N = \res{p4-mN}$, $\w_{MAP} = \res{p4-wmap}$ and
+$\norm{\w_{MAP} - \mathbf m_N}_2 = \res{p4-diff}$ (the largest gap between the two curves on the
+grid is $\res{p4-curve-gap}$): the two differ only by rounding, as Figure~\ref{fig:p4-pred} shows.
+
+\begin{figure}[H]
+  \centering\fig[0.8\linewidth]{p4_predictive}
+  \caption{Posterior predictive mean and 95\% interval $m(x) \pm 1.96\,s(x)$ for $N = 10$, with
+    the MAP (ridge) fit overlaid, the training data and $\sin(2\pi x)$.}
+  \label{fig:p4-pred}
+\end{figure}
+
+\paragraph{Effect of $N$.} Figure~\ref{fig:p4-width} shows the interval width $2\times1.96\,s(x)$
+for $N = 5, 10, 20, 50$:
+
+\begin{table}[H]
+  \centering\small
+  \begin{tabular}{rccc}
+    \toprule
+    $N$ & mean width & largest width & parameter share of $s^2$ (\%) \\
+    \midrule
+    5 & $\res{p4-width-5-mean}$ & $\res{p4-width-5-max}$ & $\res{p4-width-5-share}$ \\
+    10 & $\res{p4-width-10-mean}$ & $\res{p4-width-10-max}$ & $\res{p4-width-10-share}$ \\
+    20 & $\res{p4-width-20-mean}$ & $\res{p4-width-20-max}$ & $\res{p4-width-20-share}$ \\
+    50 & $\res{p4-width-50-mean}$ & $\res{p4-width-50-max}$ & $\res{p4-width-50-share}$ \\
+    \bottomrule
+  \end{tabular}
+  \caption{Predictive interval width over $x \in [0, 1]$, and the average share of the
+    predictive variance that is parameter uncertainty $\bm\phi^\T S_N\bm\phi$. The noise floor is
+    $2\times1.96\,\beta^{-1/2} = \res{p4-floor}$.}
+  \label{tab:p4-width}
+\end{table}
+
+\begin{figure}[H]
+  \centering\fig[0.8\linewidth]{p4_width}
+  \caption{Width of the 95\% predictive interval vs.\ $x$ for each $N$, with the
+    irreducible-noise floor.}
+  \label{fig:p4-width}
+\end{figure}
+
+\paragraph{Discussion.} Every training point adds $\beta\bm\phi(x_n)\bm\phi(x_n)^\T$ to the
+posterior precision $S_N^{-1}$, so the posterior covariance $S_N$, and with it the parameter
+uncertainty $\bm\phi(x)^\T S_N\bm\phi(x)$, shrinks roughly like $1/N$ (from
+$\res{p4-width-5-share}\%$ of the predictive variance at $N = 5$ to $\res{p4-width-50-share}\%$
+at $N = 50$), fastest at the ends of $[0, 1]$, where a cubic is least pinned down. The
+observation-noise term $\beta^{-1}$ does not depend on the data at all: it is the scatter of a
+new target around the true function, so no amount of data removes it, and the band can only
+approach the floor $2\times1.96\,\beta^{-1/2} = \res{p4-floor}$, never cross it. (Neither term
+depends on the observed $t$ values, only on where the inputs lie.)
+
+\end{document}
