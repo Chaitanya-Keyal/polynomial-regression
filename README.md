@@ -24,6 +24,7 @@ figures/                     every figure as PDF (for the report) and PNG (writt
 tests/                       hand-worked checks of the solvers and of each problem's maths
 report/report.tex            the write-up; numbers and figures come in from results/ and figures/
 notebooks/demo.ipynb         the demo: each problem's figures and key numbers, by calling src/
+docs/notes/                  study notes: the maths, the code, the demo, likely viva questions
 pyproject.toml, uv.lock      dependencies; .python-version pins Python 3.12
 ```
 
