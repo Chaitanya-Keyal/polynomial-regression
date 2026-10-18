@@ -1,0 +1,12 @@
+[project]
+name = "polynomial-regression"
+version = "0.1.0"
+description = "CS F320 Assignment 1"
+requires-python = ">=3.10"
+dependencies = [
+    "numpy>=1.26",
+    "matplotlib>=3.6",
+]
+
+[dependency-groups]
+dev = ["pytest>=8"]
