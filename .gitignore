@@ -1,14 +1,17 @@
+# The data is fixed (assignment, "Provided Files"): data/ holds only the six given CSVs, and
+# nothing in this repo generates data. Smoke-test stand-ins live outside the repo, in ../scratch.
+
 __pycache__/
-*.py[cod]
 .venv/
 .pytest_cache/
+.ruff_cache/
 .ipynb_checkpoints/
 
-# LaTeX build artefacts
-*.aux
-*.log
-*.out
-*.toc
-*.synctex.gz
-*.fdb_latexmk
-*.fls
+# LaTeX build files; report/report.pdf itself is tracked.
+report/*.aux
+report/*.log
+report/*.out
+report/*.toc
+report/*.synctex.gz
+report/*.fdb_latexmk
+report/*.fls
