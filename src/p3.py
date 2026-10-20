@@ -8,11 +8,12 @@ reported quantity comes from the final iterate; the best-so-far E is only plotte
 import matplotlib.pyplot as plt
 import numpy as np
 
+from src.common import fmt
 from src.common.bases import legendre
 from src.common.data import TEST, TRAIN, load
 from src.common.linalg import ridge
 from src.common.metrics import lasso_objective, rmse
-from src.common.plots import BLUE, INK, INK_2, ORANGE, X_DENSE, points, rmse_vs_lambda, truth
+from src.common.plots import BLUE, INK_2, ORANGE, X_DENSE, points, rmse_vs_lambda, truth
 
 D = 9
 ETA = 0.05
@@ -94,7 +95,7 @@ def compute():
     numbers = {
         "cond_PtP": float(np.linalg.cond(Phi.T @ Phi)),
         "check": {
-            "E_final": lasso_objective(Phi, w_check, t, CHECK_LAM),
+            "E_final": float(objs_check[-1]),
             "w": w_check.tolist(),
             "w_minus_w_ref": float(np.linalg.norm(w_check - W_REF)),
             "optimality": optimality(Phi, t, w_check, CHECK_LAM),
@@ -169,9 +170,7 @@ def path_figure(res):
     for ax in axes[-1]:
         ax.set_xlabel("λ (log scale)", fontsize=8)
     fig.suptitle(
-        r"Lasso coefficient path (hollow markers: $\approx 0$, $|w_j| < 2\eta\lambda$)",
-        y=1.0,
-        color=INK,
+        r"Lasso coefficient path (hollow markers: $\approx 0$, $|w_j| < 2\eta\lambda$)", y=1.0
     )
     fig.tight_layout()
     return fig
@@ -186,14 +185,14 @@ def fits_figure(res):
         X_DENSE,
         Phi_dense @ n["lasso"]["w"],
         color=BLUE,
-        label=f"Lasso, λ* = {n['lasso']['lam']:.2g}",
+        label=rf"Lasso, $\lambda^\star = {fmt.lam(n['lasso']['lam'])}$",
     )
     ax.plot(
         X_DENSE,
         Phi_dense @ n["ridge"]["w"],
         color=ORANGE,
         linestyle=(0, (4, 3)),
-        label=f"Ridge, best λ = {n['ridge']['lam']:.2g}",
+        label=rf"Ridge, best $\lambda = {fmt.lam(n['ridge']['lam'])}$",
     )
     points(ax, res["x"], res["t"])
     ax.set(xlabel="x", ylabel="t", title="Lasso and Ridge at their best λ (Legendre basis, d = 9)")

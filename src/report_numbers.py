@@ -7,36 +7,23 @@ python -m src.report_numbers
 """
 
 import json
-import math
 from pathlib import Path
 
 from src import p1, p2, p3, p4
+from src.common.fmt import lam, num
 
 RESULTS = Path(__file__).resolve().parents[1] / "results"
 
 
-def num(v, sig=3):
-    r"""A number for math mode: plain between 1e-3 and 1e5, otherwise m \times 10^{e}."""
-    if v == 0:
-        return "0"
-    if 1e-3 <= abs(v) < 1e5:
-        return f"{v:.{max(sig - 1 - math.floor(math.log10(abs(v))), 0)}f}"
-    mantissa, exp = f"{v:.{sig - 1}e}".split("e")
-    return rf"{mantissa} \times 10^{{{int(exp)}}}"
+def rounding(v):
+    """A value set by rounding alone (the floating-point floor): one significant figure, since
+    another linear-algebra library can change its leading digit."""
+    return num(v, 1)
 
 
 def given(v):
     """A parameter as the assignment states it (0.1, not 0.100)."""
     return f"{v:g}"
-
-
-def lam(v):
-    r"""A grid value of lambda: 10^{k} for an exact power of ten, otherwise m \times 10^{k}."""
-    k = math.log10(v)
-    if abs(k - round(k)) < 1e-9:
-        return f"10^{{{round(k)}}}"
-    mantissa, exp = f"{v:.2e}".split("e")
-    return rf"{mantissa} \times 10^{{{int(exp)}}}"
 
 
 def vec(values, sig=3, fixed=None):
@@ -50,6 +37,10 @@ def thousands(k):
 
 
 def p1_macros(n):
+    rows = []
+    for d, c in n["closed"].items():
+        f = rounding if int(d) == p1.D else num  # d = 9 interpolates, so its error is rounding
+        rows.append(rf"{d} & ${f(c['train_E'])}$ & ${f(c['train_rmse'])}$ \\")
     m = {
         "p1-seed": str(p1.SEED),
         "p1-eta": given(p1.ETA),
@@ -57,27 +48,27 @@ def p1_macros(n):
         "p1-cond-phi": num(n["cond_phi"]),
         "p1-cond-q": num(n["cond_q"], 4),
         "p1-wclosed-norm": num(n["w_closed_norm"]),
-        "p1-sgd-gap": num(n["sgd_batch_rel_gap"], 2),
+        "p1-sgd-gap": rounding(n["sgd_batch_rel_gap"]),
         "p1-E0": num(n["E_0"], 4),
-        "p1-lr-ratio": num(n["w_100_over_w_closed"], 5),
-        "p1-closed-rows": " ".join(
-            rf"{d} & ${num(c['train_E'])}$ & ${num(c['train_rmse'])}$ \\"
-            for d, c in n["closed"].items()
-        ),
+        "p1-closed-rows": " ".join(rows),
         "p1-w-rows": " ".join(
             rf"{j} & ${num(wc)}$ & ${num(w100)}$ \\"
             for j, (wc, w100) in enumerate(
                 zip(n["closed"][str(p1.D)]["w"], n["w_100_too_large"], strict=True)
             )
         ),
+        "p1-lr-small-eta": given(p1.LR_CASES["too small"]),
+        "p1-lr-good-eta": given(p1.LR_CASES["well chosen"]),
+        "p1-lr-large-eta": given(p1.LR_CASES["too large"]),
+        "p1-lr-small-E100": num(n["E_100"]["too small"], 4),
+        "p1-lr-good-E100": rounding(n["E_100"]["well chosen"]),  # at the floating-point floor
+        "p1-lr-large-E100": num(n["E_100"]["too large"], 4),
+        "p1-lr-ratio": num(n["w_100_over_w_closed"], 5),
     }
-    for key, label in (("small", "too small"), ("good", "well chosen"), ("large", "too large")):
-        m[f"p1-lr-{key}-eta"] = given(p1.LR_CASES[label])
-        m[f"p1-lr-{key}-E100"] = num(n["E_100"][label], 4)
     for v, data in n["verification"].items():
-        m[f"p1-{v}-abs"] = num(data["abs_err"])
-        m[f"p1-{v}-rel"] = num(data["rel_err"])
-        m[f"p1-{v}-final"] = num(data["final_E"], 2)
+        m[f"p1-{v}-abs"] = rounding(data["abs_err"])
+        m[f"p1-{v}-rel"] = rounding(data["rel_err"])
+        m[f"p1-{v}-final"] = rounding(data["final_E"])
         m[f"p1-{v}-factor"] = num(data["per_epoch_factor"], 4)
         m[f"p1-{v}-epochs12"] = str(data["epochs_to_1e-12"])
     return m
@@ -148,7 +139,7 @@ def p4_macros(n):
         "p4-lam": given(p4.LAM),
         "p4-mN": vec(n["m_N"], 4),
         "p4-wmap": vec(n["w_map"], 4),
-        "p4-diff": num(n["w_map_minus_m_N"], 2),
+        "p4-diff": rounding(n["w_map_minus_m_N"]),
         "p4-floor": num(p4.FLOOR),
     }
     for size, w in n["width"].items():

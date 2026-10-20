@@ -10,9 +10,8 @@ import pytest
 from src import p1
 from src.common.bases import monomial
 from src.common.linalg import least_squares
+from tests import T, X
 
-X = np.linspace(0, 1, 10)
-T = np.array([0.3, -1.2, 0.8, 0.1, -0.5, 1.1, -0.9, 0.4, 0.0, -0.2])
 PHI = monomial(X, p1.D)
 Q, R = np.linalg.qr(PHI)
 ALPHA_STAR = Q.T @ T  # the minimiser, since Q^T Q = I

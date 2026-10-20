@@ -5,14 +5,14 @@ import numpy as np
 from src import p2
 from src.common.bases import monomial
 from src.common.linalg import ridge
+from tests import T, X
 
-PHI = monomial(np.linspace(0, 1, 10), p2.D)
-T = np.array([0.3, -1.2, 0.8, 0.1, -0.5, 1.1, -0.9, 0.4, 0.0, -0.2])
+PHI = monomial(X, p2.D)
 
 
 def test_gd_stops_within_tolerance_of_the_closed_form():
     w_closed = ridge(PHI, T, p2.GD_LAM)
-    _, objs, errs = p2.ridge_gd(PHI, T, p2.GD_LAM, p2.GD_ETA, w_closed)
+    objs, errs = p2.ridge_gd(PHI, T, p2.GD_LAM, p2.GD_ETA, w_closed)
     assert errs[-1] < p2.GD_TOL <= errs[-2]
     # eta is below 2 / lambda_max, so every step lowers the objective (up to its rounding)
     assert np.all(np.diff(objs) <= 1e-14)

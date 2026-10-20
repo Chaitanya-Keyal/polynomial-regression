@@ -6,12 +6,12 @@ import pytest
 
 from src import p3
 from src.common.bases import legendre
+from tests import T, X
 
-PHI = legendre(np.linspace(0, 1, 10), p3.D)
-T = np.array([0.3, -1.2, 0.8, 0.1, -0.5, 1.1, -0.9, 0.4, 0.0, -0.2])
+PHI = legendre(X, p3.D)
 
 
-def lasso_cd(lam, sweeps=100_000):
+def lasso_cd(lam, sweeps=2000):
     """The exact Lasso by cyclic coordinate descent with soft-thresholding."""
     w, col_sq = np.zeros(PHI.shape[1]), (PHI**2).sum(axis=0)
     for _ in range(sweeps):
@@ -23,14 +23,14 @@ def lasso_cd(lam, sweeps=100_000):
 
 @pytest.mark.parametrize("lam", [0.01, 0.1])
 def test_subgradient_lands_within_the_chatter_of_the_exact_solution(lam):
-    w_exact = lasso_cd(lam, sweeps=2000)
+    w_exact = lasso_cd(lam)
     w, _ = p3.subgradient_descent(PHI, T, lam)
     assert np.abs(w - w_exact).max() < 5 * p3.ETA * lam
     np.testing.assert_array_equal(p3.near_zero(w, lam), p3.near_zero(w_exact, lam))
 
 
 def test_optimality_conditions_hold_exactly_at_the_exact_solution():
-    w = lasso_cd(0.1, sweeps=2000)
+    w = lasso_cd(0.1)
     report = p3.optimality(PHI, T, w, 0.1)
     assert report["max_active_violation"] < 1e-9
     assert report["max_zero_ratio"] <= 1 + 1e-9  # w_1 = -0.0009 is nonzero but ≈ 0: ratio 1

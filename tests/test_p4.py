@@ -5,9 +5,9 @@ import numpy as np
 from src import p4
 from src.common.bases import monomial
 from src.common.linalg import ridge
+from tests import T, X
 
-PHI = monomial(np.linspace(0, 1, 10), p4.D)
-T = np.array([0.3, -1.2, 0.8, 0.1, -0.5, 1.1, -0.9, 0.4, 0.0, -0.2])
+PHI = monomial(X, p4.D)
 
 
 def test_posterior_and_predictive():

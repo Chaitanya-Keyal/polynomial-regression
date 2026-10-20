@@ -6,6 +6,7 @@ E~(w) = 1/2 ||Phi w - t||^2 + lam/2 ||w||^2, with Phi the d = 9 monomial basis o
 import matplotlib.pyplot as plt
 import numpy as np
 
+from src.common import fmt
 from src.common.bases import monomial
 from src.common.data import TEST, TRAIN, load
 from src.common.linalg import ridge
@@ -21,15 +22,15 @@ PANELS = {"overfit": 1e-10, "underfit": 1e-2}  # with lambda* between them
 
 def ridge_gd(Phi, t, lam, eta, w_ref):
     """Batch GD on E~ from w = 0: w <- w - eta (Phi^T (Phi w - t) + lam w), until w is within
-    GD_TOL of w_ref (relative 2-norm). Returns w, E~ and the relative error per iteration
-    (index 0 is the start)."""
+    GD_TOL of w_ref (relative 2-norm). Returns E~ and the relative error per iteration (index 0
+    is the start)."""
     w = np.zeros(Phi.shape[1])
     objs, errs = [ridge_objective(Phi, w, t, lam)], [1.0]
     while errs[-1] >= GD_TOL:
         w = w - eta * (Phi.T @ (Phi @ w - t) + lam * w)
         objs.append(ridge_objective(Phi, w, t, lam))
         errs.append(np.linalg.norm(w - w_ref) / np.linalg.norm(w_ref))
-    return w, np.array(objs), np.array(errs)
+    return np.array(objs), np.array(errs)
 
 
 def within_band(test):
@@ -59,12 +60,11 @@ def compute():
     peak = max(span, key=lambda i: test[i])
 
     w_closed = ridge(Phi, t, GD_LAM)
-    _, objs, errs = ridge_gd(Phi, t, GD_LAM, GD_ETA, w_closed)
+    objs, errs = ridge_gd(Phi, t, GD_LAM, GD_ETA, w_closed)
     PtP = Phi.T @ Phi
 
-    panel_ws = {"overfit": ridge(Phi, t, PANELS["overfit"]), "best": ws[best]}
-    panel_ws["underfit"] = ridge(Phi, t, PANELS["underfit"])
-    panel_lams = {**PANELS, "best": float(LAMS[best])}
+    panel_lams = {"overfit": PANELS["overfit"], "best": float(LAMS[best]), **PANELS}
+    panel_ws = {name: ridge(Phi, t, lam) for name, lam in panel_lams.items()}
     numbers = {
         "lams": LAMS.tolist(),
         "train_rmse": train.tolist(),
@@ -140,13 +140,6 @@ def rmse_figure(res):
     n = res["numbers"]
     fig, ax = plt.subplots(figsize=(6.2, 3.6))
     rmse_vs_lambda(ax, n["lams"], n["train_rmse"], n["test_rmse"], n["panels"]["best"]["lam"])
-    ax.axhline(
-        WITHIN * min(n["test_rmse"]),
-        color=INK_2,
-        linestyle=":",
-        linewidth=1,
-        label=rf"{WITHIN} $\times$ min test RMSE",
-    )
     ax.set_title(f"Ridge, d = {D}: RMSE vs. λ")
     ax.legend(loc="lower right", frameon=True, edgecolor="none")
     return fig
@@ -154,14 +147,14 @@ def rmse_figure(res):
 
 def fits_figure(res):
     n = res["numbers"]["panels"]
-    titles = {"overfit": "overfit", "best": "λ*", "underfit": "underfit"}
+    titles = {"overfit": "overfit", "best": r"$\lambda^\star$", "underfit": "underfit"}
     fig, axes = plt.subplots(1, 3, figsize=(7.2, 2.8), sharey=True)
     for ax, (name, w) in zip(axes, res["panel_ws"].items(), strict=True):
         truth(ax)
         ax.plot(X_DENSE, monomial(X_DENSE, D) @ w, color=BLUE, label="ridge fit")
         points(ax, res["x"], res["t"])
-        ax.set_title(f"{titles[name]}: λ = {n[name]['lam']:.2g}")
-        note(ax, f"‖w‖ = {n[name]['w_norm']:.3g}")
+        ax.set_title(rf"{titles[name]}: $\lambda = {fmt.lam(n[name]['lam'])}$")
+        note(ax, rf"$\|\mathbf{{w}}\|_2 = {fmt.num(n[name]['w_norm'])}$")
         ax.set_xlabel("x")
     axes[0].set_ylabel("t")
     axes[0].set_ylim(-1.8, 1.8)

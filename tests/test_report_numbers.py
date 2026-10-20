@@ -7,6 +7,7 @@ from pathlib import Path
 import pytest
 
 from src import report_numbers as rn
+from src.common.fmt import lam, num
 
 ROOT = Path(__file__).resolve().parents[1]
 
@@ -22,13 +23,14 @@ ROOT = Path(__file__).resolve().parents[1]
     ],
 )
 def test_num(value, expected):
-    assert rn.num(value) == expected
+    assert num(value) == expected
 
 
-def test_lam_and_given():
-    assert rn.lam(1e-10) == "10^{-10}"
-    assert rn.lam(1.7782794100389227e-07) == r"1.78 \times 10^{-7}"
+def test_lam_given_and_rounding():
+    assert lam(1e-10) == "10^{-10}"
+    assert lam(1.7782794100389227e-07) == r"1.78 \times 10^{-7}"
     assert rn.given(0.05) == "0.05"
+    assert rn.rounding(4.06e-6) == r"4 \times 10^{-6}"
 
 
 def test_report_uses_every_key_and_only_generated_ones():

@@ -11,7 +11,7 @@ from src.common.bases import monomial
 from src.common.data import TRAIN, load
 from src.common.linalg import least_squares
 from src.common.metrics import rmse, sse
-from src.common.plots import AQUA, BLUE, ORANGE, SERIES, X_DENSE, note, points, truth
+from src.common.plots import AQUA, BLUE, ORANGE, X_DENSE, note, points, truth
 
 SEED = 42  # a fresh np.random.default_rng(SEED) for every run
 D = 9
@@ -98,7 +98,6 @@ def compute():
         "numbers": numbers,
         "x": x,
         "t": t,
-        "closed": closed,
         "losses": {v: losses for v, (_, losses) in runs.items()},
         "lr": {label: losses for label, (_, losses) in lr.items()},
     }
@@ -106,12 +105,12 @@ def compute():
 
 def fits_figure(res):
     fig, axes = plt.subplots(3, 3, figsize=(7.2, 6.4), sharex=True, sharey=True)
-    for ax, (d, w) in zip(axes.flat, res["closed"].items(), strict=True):
+    for ax, (d, c) in zip(axes.flat, res["numbers"]["closed"].items(), strict=True):
         truth(ax)
-        ax.plot(X_DENSE, monomial(X_DENSE, d) @ w, color=BLUE, label="least-squares fit")
+        ax.plot(X_DENSE, monomial(X_DENSE, d) @ c["w"], color=BLUE, label="least-squares fit")
         points(ax, res["x"], res["t"])
         ax.set_title(f"d = {d}")
-        note(ax, f"train RMSE {res['numbers']['closed'][d]['train_rmse']:.3f}")
+        note(ax, f"train RMSE {c['train_rmse']:.3f}")
     axes[0, 0].set_ylim(-1.8, 1.8)
     for ax in axes[-1]:
         ax.set_xlabel("x")
@@ -136,7 +135,7 @@ def loss_figure(res):
 
 def lr_figure(res):
     fig, ax = plt.subplots(figsize=(6.2, 3.6))
-    for (label, losses), color in zip(res["lr"].items(), SERIES, strict=False):
+    for (label, losses), color in zip(res["lr"].items(), (BLUE, ORANGE, AQUA), strict=True):
         ax.semilogy(losses, color=color, label=f"η = {LR_CASES[label]} ({label})")
     ax.set(xlabel="epoch", ylabel="E (log scale)", title=f"Batch GD, d = {D}")
     ax.set_xlim(0, LR_EPOCHS)

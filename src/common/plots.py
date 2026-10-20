@@ -7,10 +7,11 @@ sin(2 pi x) is defined here and nowhere else, because it is only ever plotted, n
 import matplotlib as mpl
 import numpy as np
 
-# Categorical slots, always taken in this order. Checked for colour-blind separation on a light
-# surface; aqua and yellow are below 3:1 contrast, so figures that use them carry a legend.
-BLUE, ORANGE, AQUA, YELLOW = "#2a78d6", "#eb6834", "#1baf7a", "#eda100"
-SERIES = (BLUE, ORANGE, AQUA, YELLOW)
+from src.common import fmt
+
+# Categorical colours, always taken in this order. Checked for colour-blind separation on a light
+# surface; aqua is below 3:1 contrast, so figures that use it carry a legend.
+BLUE, ORANGE, AQUA = "#2a78d6", "#eb6834", "#1baf7a"
 # One hue, light to dark, for ordered series (P4's N = 5, 10, 20, 50).
 RAMP = ("#86b6ef", "#3987e5", "#1c5cab", "#0d366b")
 INK, INK_2, MUTED, GRID, AXIS = "#0b0b0b", "#52514e", "#898781", "#e1e0d9", "#c3c2b7"
@@ -41,7 +42,6 @@ mpl.rcParams.update(
         "ytick.minor.size": 0,
         "lines.linewidth": 1.6,
         "lines.markersize": 5,
-        "axes.prop_cycle": mpl.cycler(color=SERIES),
     }
 )
 
@@ -73,7 +73,7 @@ def rmse_vs_lambda(ax, lams, train, test, lam_star):
     ax.axhline(NOISE_SD, color=INK_2, linestyle="--", linewidth=1, label=f"noise level {NOISE_SD}")
     ax.axvline(lam_star, color=MUTED, linewidth=1)
     ax.annotate(
-        f"λ* = {lam_star:.2g}",
+        rf"$\lambda^\star = {fmt.lam(lam_star)}$",
         (lam_star, 1),
         xycoords=("data", "axes fraction"),
         xytext=(4, -10),
