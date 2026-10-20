@@ -1,0 +1,3 @@
+# The provided CSVs are used byte for byte as given (two have Windows line endings), so git
+# must never convert them.
+data/*.csv -text
