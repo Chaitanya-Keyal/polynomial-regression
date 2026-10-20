@@ -49,14 +49,17 @@
 \section*{Implementation}
 
 Everything is written from scratch in Python~3.12 with NumPy for linear algebra and Matplotlib
-for plots; no fitting library is used. The code is at
-\url{https://github.com/Chaitanya-Keyal/polynomial-regression}: \texttt{src/p1.py} to
-\texttt{src/p4.py} hold one problem each, \texttt{src/common/} the shared bases and solvers, and
-\texttt{python -m src.run} regenerates every figure and every number in this report from the
-six provided CSV files, which are loaded as given. $\sin(2\pi x)$ appears only in plots. The
-random seed for the per-epoch shuffling in P1 is $\res{p1-seed}$ (a fresh
-\texttt{np.random.default\_rng(\res{p1-seed})} per run), so every result is reproducible to the
-last digit. No explicit matrix inverse is formed: least squares uses the SVD-based
+for plots; no fitting library is used. The code, the data and every output are at
+\begin{center}\url{https://github.com/Chaitanya-Keyal/polynomial-regression}\end{center}
+\texttt{src/p1.py} to \texttt{src/p4.py} hold one problem each, \texttt{src/common/} the shared
+bases and solvers, and \texttt{python -m src.run} regenerates every figure and every number in
+this report from the six provided CSV files, which are loaded as given. $\sin(2\pi x)$ appears
+only in plots. The random seed for the per-epoch shuffling in P1 is $\res{p1-seed}$ (a fresh
+\texttt{np.random.default\_rng(\res{p1-seed})} per run), so a rerun reproduces every number
+exactly. The few values that rounding alone determines (the converged $E$ near $10^{-30}$ and the
+gaps between GD and the closed form in P1 and P4) are printed to one significant figure, since
+another linear-algebra library can change their leading digit. No explicit matrix inverse is
+formed: least squares uses the SVD-based
 \texttt{np.linalg.lstsq}, and ridge and the Bayesian posterior use \texttt{np.linalg.solve}.
 RMSE is $\sqrt{\text{mean squared error}}$ throughout.
 
@@ -117,10 +120,10 @@ chase the noise, most visibly near the ends of $[0, 1]$.
 $d = 9$ and $\eta = \res{p1-eta}$ over all $\res{p1-epochs}$ epochs of the verification run:
 every curve has flattened at the floating-point floor (Batch near $10^{-30}$, SGD and
 Mini-batch near $10^{-29}$, since their 10 and 4 rounded updates per epoch leave more rounding).
-Batch and Stochastic GD reach $E < 10^{-12}$ after $\res{p1-batch-epochs12}$ and
-$\res{p1-sgd-epochs12}$ epochs, Mini-batch GD after $\res{p1-minibatch-epochs12}$; over the
-first 100 epochs $E$ shrinks per epoch by an average factor of $\res{p1-batch-factor}$,
-$\res{p1-sgd-factor}$ and $\res{p1-minibatch-factor}$.
+$E < 10^{-12}$ is reached after $\res{p1-batch-epochs12}$ epochs by Batch GD,
+$\res{p1-sgd-epochs12}$ by Stochastic GD and $\res{p1-minibatch-epochs12}$ by Mini-batch GD; over
+the first 100 epochs $E$ shrinks per epoch by an average factor of $\res{p1-batch-factor}$,
+$\res{p1-sgd-factor}$ and $\res{p1-minibatch-factor}$ respectively.
 
 \begin{figure}[H]
   \centering\fig[0.8\linewidth]{p1_loss}
@@ -141,7 +144,7 @@ Figure~\ref{fig:p1-lr} shows the three regimes over 100 epochs:
   \item $\eta = \res{p1-lr-good-eta}$ (well chosen): $E$ falls by a factor of 4 per epoch and
         reaches the floating-point floor within about 50 epochs ($E_{100} = \res{p1-lr-good-E100}$);
   \item $\eta = \res{p1-lr-large-eta}$ (too large): $|1-\eta| = 1.1$, so the error flips sign and
-        grows by $1.1$ every epoch. After 100 epochs $E = \res{p1-lr-large-E100} = 1.1^{200}E_0$,
+        grows by a factor of $1.1$ every epoch. After 100 epochs $E = \res{p1-lr-large-E100} = 1.1^{200}E_0$,
         and $\bm\alpha_{100} = (1 - 1.1^{100})\bm\alpha^\star$, so the weight vector is
         $\res{p1-lr-ratio}$ times the closed-form solution (Table~\ref{tab:p1-w}).
 \end{itemize}
@@ -204,8 +207,8 @@ $(1-\eta)$ and leaves every other residual untouched, so one pass in any order m
 residual by $(1-\eta)$ once, exactly like one Batch step $\mathbf r \leftarrow (I - \eta QQ^\T)
 \mathbf r = (1-\eta)\mathbf r$. (ii)~Mini-batch GD \emph{averages} over its batch, so the nine
 points in batches of three shrink only by $(1-\eta/3)$ per epoch (the singleton by $1-\eta$):
-$E$ falls by about $\res{p1-minibatch-factor}$ per epoch instead of $0.81$ and needs about 2.6
-times as many epochs ($\res{p1-minibatch-epochs12}$ vs.\ $\res{p1-batch-epochs12}$).
+$E$ shrinks by a factor of about $\res{p1-minibatch-factor}$ per epoch instead of $0.81$, so it
+needs about 2.6 times as many epochs ($\res{p1-minibatch-epochs12}$ vs.\ $\res{p1-batch-epochs12}$).
 
 %==============================================================================================
 \section{P2: Ridge regression as a MAP estimate}
@@ -242,14 +245,13 @@ practical.
 over the grid. The test RMSE is smallest at $\lambda^\star = \res{p2-best-lam}$, where it is
 $\res{p2-best-test}$ (train $\res{p2-best-train}$). It is within $1.05\times$ its minimum on the
 $\res{p2-flat-n}$ contiguous grid points $\lambda \in [\res{p2-flat-lo}, \res{p2-flat-hi}]$
-around $\lambda^\star$, the interval; the qualifying set is not one interval, though, because
-after rising to at most $\res{p2-flat-peak-ratio}\times$ the minimum (at
-$\lambda = \res{p2-flat-peak-lam}$) the test RMSE dips back under $1.05\times$ at the isolated
-grid point $\lambda = \res{p2-flat-others}$.
+around $\lambda^\star$, which is the interval we report; after peaking at
+$\res{p2-flat-peak-ratio}\times$ the minimum at $\lambda = \res{p2-flat-peak-lam}$ it dips back
+under $1.05\times$ at the isolated grid point $\lambda = \res{p2-flat-others}$, so the qualifying
+set is not a single interval.
 The minimum is flat: the test RMSE stays within 5\% of its minimum over almost two decades of
-$\lambda$ around $\lambda^\star$ and never exceeds $\res{p2-flat-peak-ratio}\times$ it from
-$\res{p2-flat-lo}$ to $\res{p2-flat-others}$, so the exact choice of $\lambda$ in this range
-hardly matters. Below the interval the penalty is too weak and the degree-9 polynomial chases the
+$\lambda$ around $\lambda^\star$ and within 7\% all the way from $\res{p2-flat-lo}$ to
+$\res{p2-flat-others}$, so the exact choice of $\lambda$ in this range hardly matters. Below the interval the penalty is too weak and the degree-9 polynomial chases the
 noise (at $\lambda = \res{p2-overfit-lam}$ the train RMSE falls to $\res{p2-overfit-train}$ while
 the test RMSE climbs to $\res{p2-overfit-test}$), and above it the test RMSE first plateaus near
 0.12 until $\lambda \approx 10^{-4}$, after which the over-shrunk weights underfit and train and
@@ -258,7 +260,7 @@ test RMSE rise together (to $\res{p2-underfit-test}$ at $\lambda = \res{p2-under
 \begin{figure}[H]
   \centering\fig[0.8\linewidth]{p2_rmse}
   \caption{Train and test RMSE of ridge regression ($d = 9$) vs.\ $\lambda$, with the noise level
-    $\sqrt{0.01} = 0.1$ (dashed) and $1.05\times$ the minimum test RMSE (dotted).}
+    $\sqrt{0.01} = 0.1$.}
   \label{fig:p2-rmse}
 \end{figure}
 
@@ -295,7 +297,7 @@ the large, cancelling coefficients an interpolating polynomial needs.
 \paragraph{Method.} With $u = 2x - 1$, the design matrix is $\Phi_{nj} = P_j(u_n)$,
 $j = 0, \dots, 9$ (NumPy's \texttt{legvander} applied to $2x - 1$). It spans the same
 degree-9 polynomials as the monomial basis, but $\mathrm{cond}(\Phib^\T\Phib) = \res{p3-cond}$
-instead of about $10^{14}$. Subgradient descent on
+instead of $\res{p2-cond-before}$ for the monomials (Section~2). Subgradient descent on
 $E(\w) = \frac12\norm{\Phib\w - \tb}^2 + \lambda\norm{\w}_1$ runs
 $\w \leftarrow \w - \eta\,(\Phib^\T(\Phib\w - \tb) + \lambda\,\mathrm{sign}(\w))$ with
 $\mathrm{sign}(0) = 0$ and $\eta = \res{p3-eta}$ from $\w = \mathbf 0$ for $\res{p3-iters}$
@@ -307,7 +309,8 @@ $\eta\lambda$.
 \paragraph{Convergence and verification at $\lambda = \res{p3-check-lam}$.}
 Figure~\ref{fig:p3-conv} shows $E$ and the best $E$ so far. Subgradient descent is not a descent
 method: once near the optimum, the $\mathrm{sign}$ term flips for the coefficients at zero and $E$
-rises and falls by about $10^{-3}$ (right panel), while the best-so-far $E$ keeps creeping down.
+rises and falls by about $10^{-3}$ (right panel), while the best-so-far $E$ steps down to about
+$10^{-4}$ above $E^\star$ and then levels off: with a constant step it cannot close that gap.
 The final iterate has $E = \res{p3-check-E}$, against the reference
 $E^\star = \res{p3-check-Eref}$, and
 \begin{align*}
@@ -380,6 +383,9 @@ grid, has its best test RMSE at $\lambda = \res{p3-ridge-lam}$:
   \label{tab:p3-vs}
 \end{table}
 
+Figure~\ref{fig:p3-fits} shows both fits: the Lasso curve stays close to $\sin(2\pi x)$, while
+Ridge, which keeps sizeable $w_8$ and $w_9$, bends away from it near $x = 0$.
+
 \begin{figure}[H]
   \centering\fig[0.8\linewidth]{p3_fits}
   \caption{The Lasso fit at $\lambda^\star$ and the Ridge fit at its own best $\lambda$, with the
@@ -428,8 +434,8 @@ their curves coincide in Figure~\ref{fig:p4-pred}.
   \label{fig:p4-pred}
 \end{figure}
 
-\paragraph{Effect of $N$.} Figure~\ref{fig:p4-width} shows the interval width $2\times1.96\,s(x)$
-for $N = 5, 10, 20, 50$:
+\paragraph{Effect of $N$.} Table~\ref{tab:p4-width} summarises the interval width
+$2\times1.96\,s(x)$ for $N = 5, 10, 20, 50$, and Figure~\ref{fig:p4-width} plots it against $x$.
 
 \begin{table}[H]
   \centering\small
@@ -460,8 +466,8 @@ for $N = 5, 10, 20, 50$:
 posterior precision $S_N^{-1}$, so the posterior covariance $S_N$, and with it the parameter
 uncertainty $\bm\phi(x)^\T S_N\bm\phi(x)$, shrinks as $N$ grows: roughly like $1/N$ in the middle
 of $[0, 1]$, more slowly at the ends, where a cubic is least pinned down and the band stays widest
-(its share of the predictive variance falls from $\res{p4-width-5-share}\%$ at $N = 5$ to
-$\res{p4-width-50-share}\%$ at $N = 50$). The observation-noise term $\beta^{-1}$ does not depend
+(averaged over $x$, its share of the predictive variance falls from $\res{p4-width-5-share}\%$
+at $N = 5$ to $\res{p4-width-50-share}\%$ at $N = 50$). The observation-noise term $\beta^{-1}$ does not depend
 on the data at all: it is the scatter of a new target around the true function, so no amount of
 data removes it, and the band can only approach the floor $2\times1.96\,\beta^{-1/2} =
 \res{p4-floor}$, never cross it.
