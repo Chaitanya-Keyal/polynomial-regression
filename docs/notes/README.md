@@ -5,9 +5,9 @@ demo and viva. Not part of the submission. Every member may be asked about any p
 them in this order:
 
 - [assignment.md](assignment.md): what is asked, the rules that apply everywhere, and where each
-  deliverable lives in the repo and the report
-- [numerics.md](numerics.md): conditioning, why no matrix is ever inverted, QR, Cholesky, and the
-  floating-point floor; P1 to P3 all lean on it
+  deliverable lives in the repo
+- [numerics.md](numerics.md): conditioning, why no matrix is ever inverted, QR, and the
+  floating-point floor; P1 to P4 all lean on it
 - [p1-gd.md](p1-gd.md): least squares, Batch / Stochastic / Mini-batch GD on the QR problem,
   learning rates, and why SGD matches Batch exactly here
 - [p2-ridge.md](p2-ridge.md): ridge as the MAP estimate, GD on it, choosing λ

@@ -7,8 +7,8 @@ gradient descent, how many steps it takes. The degree-9 monomial basis on [0, 1]
 conditioned (κ(Φ) ≈ 1.5 × 10⁷), so the assignment avoids every operation that makes that worse:
 no normal equations for least squares, no explicit inverses, and GD only on a better-conditioned
 problem (QR in P1, the ridge penalty in P2, the Legendre basis in P3). Floating point carries
-about 16 significant digits, so a loss like ½‖Q α − t‖² cannot get below roughly 10⁻³¹: every
-"converged" curve flattens there.
+about 16 significant digits, so a loss like ½‖Q α − t‖² cannot reach 0: P1's Batch curve flattens
+near 10⁻³⁰, and SGD and Mini-batch, which make more rounded updates per epoch, near 10⁻²⁹.
 
 ## Condition number
 
@@ -53,9 +53,9 @@ Every formula with an inverse in the handout is computed with solves:
 - ridge (P2, P3, P4): `solve(ΦᵀΦ + λI, Φᵀt)` (`linalg.ridge`). For λ > 0 the matrix is symmetric
   positive definite, so the solve always succeeds.
 - the QR back-map (P1): w = R⁻¹ α as `solve(R, α)`.
-- the Bayesian posterior (P4): factor S_N⁻¹ = L Lᵀ (Cholesky, `np.linalg.cholesky`); then
-  m_N = β S_N Φᵀ t is two triangular solves, and φᵀ S_N φ = φᵀ (L Lᵀ)⁻¹ φ = ‖L⁻¹ φ‖², one more
-  solve. S_N itself is never formed.
+- the Bayesian posterior (P4): with the precision A = S_N⁻¹ = αI + βΦᵀΦ, m_N = β S_N Φᵀ t is
+  `solve(A, β Φᵀ t)` and φᵀ S_N φ is φᵀ `solve(A, φ)` (`p4.posterior`, `p4.predictive`). S_N
+  itself is never formed.
 
 ## QR: moving the bad conditioning out of the optimisation
 
@@ -63,15 +63,22 @@ Every formula with an inverse in the handout is computed with solves:
 α = R w turns ½‖Φw − t‖² into ½‖Qα − t‖², whose Hessian is QᵀQ = I: κ = 1, so GD converges at
 the same rate in every direction. Same problem, same minimiser, just new coordinates. The bad
 conditioning has not gone away; it moved into R (κ(R) = κ(Φ)), and it shows up once, at the end,
-when w = R⁻¹ α turns tiny rounding in α into the ~10⁻¹⁰ relative error of P1's verification
-table.
+in w = R⁻¹ α. GD reaches the QR solution R⁻¹Qᵀt to within about 10⁻¹⁰, but that solution and
+lstsq's SVD one differ by 4.1 × 10⁻⁶ (relative 3.7 × 10⁻¹¹): all of P1's verification error is
+this gap between two closed forms, well within the κ(Φ) ε ≈ 3 × 10⁻⁹ relative error that
+rounding allows (ε ≈ 2.2 × 10⁻¹⁶, below).
 
 ## The floating-point floor
 
-Doubles carry about 16 significant digits (machine epsilon ≈ 2.2 × 10⁻¹⁶). Computing the
-residual Qα − t with |t| ≈ 1 leaves about 10⁻¹⁶ of rounding in each entry, so
-E = ½‖r‖² bottoms out near 10 × (10⁻¹⁶)² / 2 ≈ 10⁻³¹. That is where the P1 loss curves flatten.
-Near the floor, two runs that are mathematically identical (SGD and Batch in P1) differ in their
-last digits, and the *relative* difference of their E values grows as E shrinks; the absolute
-difference stays around 10⁻¹⁶ √E. That is why `tests/test_p1.py` checks |E_SGD − E_Batch| ≤
-10⁻¹⁴ √E rather than a relative tolerance.
+Doubles carry about 16 significant digits (machine epsilon ≈ 2.2 × 10⁻¹⁶; one rounding is off by
+at most u ≈ 1.1 × 10⁻¹⁶, the unit roundoff). Each update of α leaves a few u of rounding in it,
+so the residual Qα − t (|t| ≈ 1) keeps a few × 10⁻¹⁶ in each of its ten entries, and E = ½‖r‖²
+stops falling there. In P1, Batch (one update per epoch) flattens near 10⁻³⁰ (7.0 × 10⁻³¹ after
+2000 epochs); SGD and Mini-batch (ten and four updates per epoch) carry more rounding and flatten
+near 10⁻²⁹ (1.4 and 1.6 × 10⁻²⁹).
+
+Two runs that are mathematically identical (SGD and Batch in P1) agree only up to rounding: their
+E values differ by around 10⁻¹⁶ √E, so the *relative* difference grows as E shrinks, and at the
+floor they differ by the gap between the two floors. That is why `tests/test_p1.py` (rtol 10⁻⁸)
+and `sgd_batch_rel_gap` in `results/p1.json` (6.8 × 10⁻¹¹) compare the two only while
+E > 10⁻¹⁰.
