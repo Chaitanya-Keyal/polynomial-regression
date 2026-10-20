@@ -1,6 +1,3 @@
-# The data is fixed (assignment, "Provided Files"): data/ holds only the six given CSVs, and
-# nothing in this repo generates data. Smoke-test stand-ins live outside the repo, in ../scratch.
-
 __pycache__/
 .venv/
 .pytest_cache/
