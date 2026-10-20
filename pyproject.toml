@@ -10,27 +10,23 @@ dependencies = [
 ]
 
 [dependency-groups]
-# Tests, lint and formatting; not needed to run or grade the submission.
+# Tests, lint and formatting; uv installs this group by default.
 dev = ["pytest>=8", "ruff>=0.17"]
-# The demo notebook (notebooks/demo.ipynb); it only calls src/, so it is optional too.
-notebook = ["ipykernel>=6", "jupyterlab>=4", "nbconvert>=7"]
+# The demo notebook (notebooks/demo.ipynb), which only calls src/.
+notebook = ["jupyterlab>=4"]
 
 [tool.uv]
 # The repo is run in place, not installed as a package.
 package = false
-default-groups = []
 
 [tool.ruff]
-# The width the docs wrap at.
 line-length = 100
-# Python only: the code blocks in the docs are shell commands and excerpts.
-extend-exclude = ["*.md"]
 
 [tool.ruff.lint]
 # pycodestyle, pyflakes, import order, modern syntax, likely bugs, simplifications,
 # comprehensions, naming, ruff's own rules.
 select = ["E", "W", "F", "I", "UP", "B", "SIM", "C4", "PIE", "RET", "PTH", "N", "RUF"]
-# Phi, Q, R, A, L, S_N and friends follow the assignment's notation.
+# Phi, Q, R, A and friends follow the assignment's notation.
 ignore = ["N803", "N806"]
 
 [tool.ruff.lint.per-file-ignores]

@@ -1595,9 +1595,7 @@ dev = [
     { name = "ruff" },
 ]
 notebook = [
-    { name = "ipykernel" },
     { name = "jupyterlab" },
-    { name = "nbconvert" },
 ]
 
 [package.metadata]
@@ -1611,11 +1609,7 @@ dev = [
     { name = "pytest", specifier = ">=8" },
     { name = "ruff", specifier = ">=0.17" },
 ]
-notebook = [
-    { name = "ipykernel", specifier = ">=6" },
-    { name = "jupyterlab", specifier = ">=4" },
-    { name = "nbconvert", specifier = ">=7" },
-]
+notebook = [{ name = "jupyterlab", specifier = ">=4" }]
 
 [[package]]
 name = "prometheus-client"
