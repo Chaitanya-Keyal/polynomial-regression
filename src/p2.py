@@ -63,7 +63,11 @@ def compute():
     objs, errs = ridge_gd(Phi, t, GD_LAM, GD_ETA, w_closed)
     PtP = Phi.T @ Phi
 
-    panel_lams = {"overfit": PANELS["overfit"], "best": float(LAMS[best]), **PANELS}
+    panel_lams = {
+        "overfit": PANELS["overfit"],
+        "best": float(LAMS[best]),
+        "underfit": PANELS["underfit"],
+    }
     panel_ws = {name: ridge(Phi, t, lam) for name, lam in panel_lams.items()}
     numbers = {
         "lams": LAMS.tolist(),

@@ -62,13 +62,14 @@ def compute():
 
     def verification(alpha, losses):
         err = float(np.linalg.norm(np.linalg.solve(R, alpha) - w_closed))
+        below = np.flatnonzero(losses < 1e-12)
         return {
             "abs_err": err,
             "rel_err": err / float(np.linalg.norm(w_closed)),
             "final_E": float(losses[-1]),
             # the average factor E shrinks by per epoch, over the first 100 epochs
             "per_epoch_factor": float((losses[100] / losses[0]) ** (1 / 100)),
-            "epochs_to_1e-12": int(np.argmax(losses < 1e-12)),
+            "epochs_to_1e-12": int(below[0]) if below.size else None,  # None: never got there
         }
 
     batch, sgd = runs["batch"][1], runs["sgd"][1]

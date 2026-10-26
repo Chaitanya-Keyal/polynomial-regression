@@ -7,9 +7,9 @@ def num(v, sig=3):
     r"""Plain between 1e-3 and 1e5, otherwise m \times 10^{e}."""
     if v == 0:
         return "0"
-    if 1e-3 <= abs(v) < 1e5:
-        return f"{v:.{max(sig - 1 - math.floor(math.log10(abs(v))), 0)}f}"
-    mantissa, exp = f"{v:.{sig - 1}e}".split("e")
+    mantissa, exp = f"{v:.{sig - 1}e}".split("e")  # the exponent after rounding: 0.99996 -> 1.00
+    if -3 <= int(exp) < 5:
+        return f"{v:.{max(sig - 1 - int(exp), 0)}f}"
     return rf"{mantissa} \times 10^{{{int(exp)}}}"
 
 

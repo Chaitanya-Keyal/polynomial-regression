@@ -61,11 +61,10 @@ def compute():
     x_test, t_test = load(TEST)
     Phi, Phi_test = legendre(x, D), legendre(x_test, D)
 
+    w_check, objs_check = subgradient_descent(Phi, t, CHECK_LAM)
     sweep = []
     for lam in LAMS:
-        w, objs = subgradient_descent(Phi, t, lam)
-        if np.isclose(lam, CHECK_LAM):  # 0.1 = 10^-1 is on the grid
-            w_check, objs_check = w, objs
+        w, _ = subgradient_descent(Phi, t, lam)
         sweep.append(
             {
                 "lam": float(lam),
