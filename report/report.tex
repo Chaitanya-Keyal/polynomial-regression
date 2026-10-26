@@ -52,7 +52,7 @@ Everything is written from scratch in Python~3.12 with NumPy for linear algebra 
 for plots; no fitting library is used. The code, the data and every output are at
 \begin{center}\url{https://github.com/Chaitanya-Keyal/polynomial-regression}\end{center}
 \texttt{src/p1.py} to \texttt{src/p4.py} hold one problem each, \texttt{src/common/} the shared
-bases and solvers, and \texttt{python -m src.run} regenerates every figure and every number in
+bases and solvers, and \texttt{python -m src.run} regenerates every figure and every result in
 this report from the six provided CSV files, which are loaded as given. $\sin(2\pi x)$ appears
 only in plots. The random seed for the per-epoch shuffling in P1 is $\res{p1-seed}$ (a fresh
 \texttt{np.random.default\_rng(\res{p1-seed})} per run), so a rerun reproduces every number
@@ -93,8 +93,8 @@ one epoch is
 $d = 1,\dots,9$ and Table~\ref{tab:p1-closed} their training error. The models are nested, so
 the training error can only fall as $d$ grows; at $d = 9$ there are as many weights as points
 and the polynomial interpolates the data ($E \approx 0$). Degrees 1 and 2 underfit, degrees 3
-to 6 follow $\sin(2\pi x)$ closely, and from $d = 7$ on the curve bends between the points to
-chase the noise, most visibly near the ends of $[0, 1]$.
+to 6 follow $\sin(2\pi x)$ closely, and from $d = 7$ on the curve starts to bend between the
+points to chase the noise, clearly so at $d = 8$ and 9 near the ends of $[0, 1]$.
 
 \begin{figure}[H]
   \centering\fig[0.92\linewidth]{p1_fits}
@@ -129,13 +129,14 @@ $\res{p1-sgd-factor}$ and $\res{p1-minibatch-factor}$ respectively.
   \centering\fig[0.8\linewidth]{p1_loss}
   \caption{$E$ vs.\ epoch for Batch, Stochastic and Mini-batch GD ($d = 9$,
     $\eta = \res{p1-eta}$, seed $\res{p1-seed}$). The SGD curve (dashed) lies on the Batch curve
-    until both reach the floating-point floor; below it only rounding separates them.}
+    until both reach the floating-point floor; at the floor only rounding separates them.}
   \label{fig:p1-loss}
 \end{figure}
 
 \paragraph{Learning-rate study.} In the QR coordinates the Hessian of $E$ is $Q^\T Q = I$, so
 every eigenvalue is 1 and Batch GD gives $\bm\alpha_k - \bm\alpha^\star = (1-\eta)^k(\bm\alpha_0 -
-\bm\alpha^\star)$ and $E_k = (1-\eta)^{2k}E_0$ with $E_0 = \frac12\norm{\tb}^2 = \res{p1-E0}$.
+\bm\alpha^\star)$. Since $Q$ is square here ($N = d + 1$), the minimum is $E(\bm\alpha^\star) = 0$,
+so $E_k = (1-\eta)^{2k}E_0$ with $E_0 = \frac12\norm{\tb}^2 = \res{p1-E0}$.
 GD converges exactly when $|1-\eta| < 1$, i.e.\ $0 < \eta < 2$, fastest at $\eta = 1$ (one epoch).
 Figure~\ref{fig:p1-lr} shows the three regimes over 100 epochs:
 \begin{itemize}
@@ -179,7 +180,7 @@ and $E$ stays at $E_0$ forever. It neither converges nor diverges.
   \centering\small
   \begin{tabular}{lccc}
     \toprule
-    variant & $\norm{\w_{\mathrm{GD}} - \wc}_2$ & relative error & final $E$ \\
+    variant & $\norm{\w_{\mathrm{GD}} - \wc}_2$ & relative error & final $E(\bm\alpha)$ \\
     \midrule
     Batch GD & $\res{p1-batch-abs}$ & $\res{p1-batch-rel}$ & $\res{p1-batch-final}$ \\
     Stochastic GD & $\res{p1-sgd-abs}$ & $\res{p1-sgd-rel}$ & $\res{p1-sgd-final}$ \\
@@ -192,23 +193,29 @@ and $E$ stays at $E_0$ forever. It neither converges nor diverges.
 
 The weights are large (Table~\ref{tab:p1-w}), so an absolute error of this size is a relative
 error of only $\res{p1-batch-rel}$: all three variants agree with the closed form to the
-precision the problem allows. The error is not optimisation error, since GD converges to the
-QR solution $R^{-1}Q^\T\tb$ to within rounding; what remains is the gap between two direct
-solutions of the same system (QR, and the SVD inside \texttt{lstsq}), well inside the relative
-error of about $\mathrm{cond}(\Phib)\,\epsilon_{\mathrm{mach}} \approx 3\times10^{-9}$ that
-rounding allows.
+precision the problem allows. The error is not optimisation error: GD converges to the QR
+solution $R^{-1}Q^\T\tb$ to within rounding, which is why the three variants' errors agree, and
+what remains
+is the gap between two direct solutions of the same system (QR, and the SVD inside
+\texttt{lstsq}), well inside the relative error of about
+$\mathrm{cond}(\Phib)\,\epsilon_{\mathrm{mach}} \approx 3\times10^{-9}$ that rounding allows. The
+final $E(\bm\alpha)$ is measured in the QR coordinates; recomputed as
+$\frac12\norm{\Phib\w - \tb}^2$ from the recovered $\w$ it is of order $10^{-22}$ for every
+variant, as for the closed form in Table~\ref{tab:p1-closed}, because each entry of $\Phib\w$ is a
+sum of terms as large as $7\times10^4$ that cancel.
 
 \paragraph{Discussion.} In Figure~\ref{fig:p1-loss} the SGD curve lies on the Batch curve epoch
 for epoch (relative gap below $\res{p1-sgd-gap}$ while $E > 10^{-10}$) until both reach the
 rounding floor, while Mini-batch GD is clearly slower. (i)~With $N = d + 1 = 10$ the thin $Q$ is
 square and orthogonal, so its \emph{rows} $\mathbf q_n$ are orthonormal: an SGD step on point
-$n$ changes residual $r_m$ by $-\eta r_n\mathbf q_m^\T\mathbf q_n$, which multiplies $r_n$ by
-$(1-\eta)$ and leaves every other residual untouched, so one pass in any order multiplies every
-residual by $(1-\eta)$ once, exactly like one Batch step $\mathbf r \leftarrow (I - \eta QQ^\T)
-\mathbf r = (1-\eta)\mathbf r$. (ii)~Mini-batch GD \emph{averages} over its batch, so the nine
-points in batches of three shrink only by $(1-\eta/3)$ per epoch (the singleton by $1-\eta$):
-$E$ shrinks by a factor of about $\res{p1-minibatch-factor}$ per epoch instead of $0.81$, so it
-needs about 2.6 times as many epochs ($\res{p1-minibatch-epochs12}$ vs.\ $\res{p1-batch-epochs12}$).
+$n$ multiplies $r_n$ by $(1-\eta)$ and leaves every other residual untouched
+($\mathbf q_m^\T\mathbf q_n = 0$), so one pass in any order multiplies every residual by
+$(1-\eta)$ once, exactly like one Batch step $\mathbf r \leftarrow (I - \eta QQ^\T)\mathbf r =
+(1-\eta)\mathbf r$. (ii)~Mini-batch GD \emph{averages} over its batch, so the nine points in
+batches of three shrink only by $(1-\eta/3)$ per epoch (the singleton by $1-\eta$): $E$ shrinks
+by a factor of about $\res{p1-minibatch-factor}$ per epoch instead of $0.81$, and Mini-batch
+needs about 2.6 times as many epochs ($\res{p1-minibatch-epochs12}$ vs.\
+$\res{p1-batch-epochs12}$).
 
 %==============================================================================================
 \section{P2: Ridge regression as a MAP estimate}
@@ -249,13 +256,6 @@ around $\lambda^\star$, which is the interval we report; after peaking at
 $\res{p2-flat-peak-ratio}\times$ the minimum at $\lambda = \res{p2-flat-peak-lam}$ it dips back
 under $1.05\times$ at the isolated grid point $\lambda = \res{p2-flat-others}$, so the qualifying
 set is not a single interval.
-The minimum is flat: the test RMSE stays within 5\% of its minimum over almost two decades of
-$\lambda$ around $\lambda^\star$ and within 7\% all the way from $\res{p2-flat-lo}$ to
-$\res{p2-flat-others}$, so the exact choice of $\lambda$ in this range hardly matters. Below the interval the penalty is too weak and the degree-9 polynomial chases the
-noise (at $\lambda = \res{p2-overfit-lam}$ the train RMSE falls to $\res{p2-overfit-train}$ while
-the test RMSE climbs to $\res{p2-overfit-test}$), and above it the test RMSE first plateaus near
-0.12 until $\lambda \approx 10^{-4}$, after which the over-shrunk weights underfit and train and
-test RMSE rise together (to $\res{p2-underfit-test}$ at $\lambda = \res{p2-underfit-lam}$).
 
 \begin{figure}[H]
   \centering\fig[0.8\linewidth]{p2_rmse}
@@ -264,10 +264,26 @@ test RMSE rise together (to $\res{p2-underfit-test}$ at $\lambda = \res{p2-under
   \label{fig:p2-rmse}
 \end{figure}
 
+\paragraph{Discussion.} The minimum is flat: the test RMSE stays within 5\% of its minimum over
+almost two decades of $\lambda$ around $\lambda^\star$, and within 7\% from $\res{p2-flat-lo}$ to
+$\res{p2-flat-others}$, so the exact choice of $\lambda$ in this range hardly matters. Below the
+interval the penalty is too weak and the polynomial chases the noise (train RMSE
+$\res{p2-overfit-train}$, test $\res{p2-overfit-test}$ at $\lambda = \res{p2-overfit-lam}$);
+above it the test RMSE plateaus near 0.12 until $\lambda \approx 10^{-4}$, after which the
+over-shrunk weights underfit and train and test RMSE rise together (to $\res{p2-underfit-test}$
+at $\lambda = \res{p2-underfit-lam}$).
+
 \paragraph{Fitted curves.} Figure~\ref{fig:p2-fits} shows the fits at the three values of
 $\lambda$, and Table~\ref{tab:p2-fits} their weight norms. The norm falls by almost three orders
 of magnitude from the overfit to the underfit model: the penalty buys smoothness by forbidding
 the large, cancelling coefficients an interpolating polynomial needs.
+
+\begin{figure}[H]
+  \centering\fig{p2_fits}
+  \caption{Ridge fits ($d = 9$) for $\lambda = 10^{-10}$, for $\lambda^\star$ and for
+    $\lambda = 10^{-2}$, with the training data and $\sin(2\pi x)$.}
+  \label{fig:p2-fits}
+\end{figure}
 
 \begin{table}[H]
   \centering\small
@@ -283,13 +299,6 @@ the large, cancelling coefficients an interpolating polynomial needs.
   \caption{The three ridge fits of Figure~\ref{fig:p2-fits}.}
   \label{tab:p2-fits}
 \end{table}
-
-\begin{figure}[H]
-  \centering\fig{p2_fits}
-  \caption{Ridge fits ($d = 9$) for $\lambda = 10^{-10}$, for $\lambda^\star$ and for
-    $\lambda = 10^{-2}$, with the training data and $\sin(2\pi x)$.}
-  \label{fig:p2-fits}
-\end{figure}
 
 %==============================================================================================
 \section{P3: L1-regularised regression via subgradient descent}
@@ -318,7 +327,9 @@ $E^\star = \res{p3-check-Eref}$, and
   \w^\star &= \res{p3-check-wref},
 \end{align*}
 so $\norm{\w - \w^\star}_2 = \res{p3-check-wdiff}$, the size of the $\eta\lambda$ chatter. The
-optimality conditions hold to within that chatter: with $\mathbf r = \tb - \Phib\w$, over the
+optimality conditions hold to within that chatter (a step of $\eta\lambda$ in one coefficient
+moves $\Phib^\T\mathbf r$ by up to $\lambda_{\max}(\Phib^\T\Phib)\,\eta\lambda \approx 0.06$):
+with $\mathbf r = \tb - \Phib\w$, over the
 $\res{p3-opt-nactive}$ coefficients that are not $\approx 0$,
 $\max_j |\Phib_j^\T\mathbf r - \lambda\,\mathrm{sign}(w_j)| = \res{p3-opt-active}$, and over the
 $\res{p3-opt-nzero}$ that are, $\max_j |\Phib_j^\T\mathbf r|/\lambda = \res{p3-opt-zero} \le 1$.
@@ -437,6 +448,13 @@ their curves coincide in Figure~\ref{fig:p4-pred}.
 \paragraph{Effect of $N$.} Table~\ref{tab:p4-width} summarises the interval width
 $2\times1.96\,s(x)$ for $N = 5, 10, 20, 50$, and Figure~\ref{fig:p4-width} plots it against $x$.
 
+\begin{figure}[H]
+  \centering\fig[0.72\linewidth]{p4_width}
+  \caption{Width of the 95\% predictive interval vs.\ $x$ for each $N$, with the
+    irreducible-noise floor.}
+  \label{fig:p4-width}
+\end{figure}
+
 \begin{table}[H]
   \centering\small
   \begin{tabular}{rccc}
@@ -454,13 +472,6 @@ $2\times1.96\,s(x)$ for $N = 5, 10, 20, 50$, and Figure~\ref{fig:p4-width} plots
     $2\times1.96\,\beta^{-1/2} = \res{p4-floor}$.}
   \label{tab:p4-width}
 \end{table}
-
-\begin{figure}[H]
-  \centering\fig[0.72\linewidth]{p4_width}
-  \caption{Width of the 95\% predictive interval vs.\ $x$ for each $N$, with the
-    irreducible-noise floor.}
-  \label{fig:p4-width}
-\end{figure}
 
 \paragraph{Discussion.} Every training point adds $\beta\bm\phi(x_n)\bm\phi(x_n)^\T$ to the
 posterior precision $S_N^{-1}$, so the posterior covariance $S_N$, and with it the parameter
