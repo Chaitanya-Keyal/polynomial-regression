@@ -20,9 +20,10 @@ converging in a single step.
   (E = 6.6 × 10⁻²³). The weights are huge (‖w‖ = 1.09 × 10⁵) and cancel each other: a degree-9
   polynomial forced through noisy points swings hard between them.
 - The training error can only fall as d grows: each model contains the previous one (set the new
-  weight to 0). Here it falls in pairs, train RMSE 0.53 (d = 1, 2), 0.13 (3, 4), 0.057 (5, 6):
-  sin(2πx) is odd about x = 0.5 and the x are symmetric about it, so an added even power can
-  only fit noise.
+  weight to 0). Here it falls in pairs, train RMSE 0.527 and 0.524 (d = 1, 2), 0.130 and 0.127
+  (3, 4), 0.058 and 0.057 (5, 6): sin(2πx) is odd about x = 0.5 and the x are symmetric about it,
+  so each even degree adds a direction that is even about x = 0.5, orthogonal on these points to
+  the odd signal, and it can only fit noise.
 
 ## GD on the QR problem: the code
 
@@ -77,8 +78,8 @@ squares solution, constant-step SGD would hover around the minimum instead of se
 
 ## Learning rates
 
-The Hessian of E(α) is QᵀQ = I, so α_k − α* = (1 − η)^k (α_0 − α*) and E_k = (1 − η)^{2k} E_0,
-with E_0 = ½‖t‖² = 2.38 (the start is α = 0). The study (`LR_CASES`, `p1_lr`) runs Batch GD at
+The Hessian of E(α) is QᵀQ = I, so α_k − α* = (1 − η)^k (α_0 − α*) and, since Q is square and
+so E(α*) = 0, E_k = (1 − η)^{2k} E_0, with E_0 = ½‖t‖² = 2.38 (the start is α = 0). The study (`LR_CASES`, `p1_lr`) runs Batch GD at
 η = 0.01, 0.5 and 2.1 for `LR_EPOCHS` = 100 epochs; η = 1 and η = 2 follow from the formula and
 are checked in `tests/test_p1.py`.
 
@@ -102,11 +103,20 @@ After 2000 epochs at η = 0.1 all three variants give ‖w_GD − w_closed‖ �
 optimisation error: GD reaches the QR solution R⁻¹Qᵀt to within about 10⁻¹⁰. The 4.1 × 10⁻⁶ is
 the gap between the two closed forms themselves, QR and lstsq's SVD, well within the
 κ(Φ) ε ≈ 1.5 × 10⁷ × 2.2 × 10⁻¹⁶ ≈ 3 × 10⁻⁹ relative error that rounding allows
-([numerics.md](numerics.md)). That is also why the three variants agree to four digits.
+([numerics.md](numerics.md)). That is also why the three variants agree to about four digits.
+These values are this machine's: rounding sets them, so another BLAS, or building Φ with `x**j`
+instead of `np.vander` (6.2 × 10⁻⁶), changes even their first digit. That is why the report
+prints them to one significant figure.
+
+The final E in the report's verification table is E(α) in the QR coordinates, 10⁻³⁰ to 10⁻²⁹.
+Recomputed as ½‖Φw − t‖² from the recovered w it is 2 to 4 × 10⁻²² for every variant, like the
+closed form's 6.6 × 10⁻²³: with weights up to 7 × 10⁴, each entry of Φw is a sum of large terms
+that cancel, so it carries rounding of about 10⁻¹¹.
 
 ## Demo
 
-1. `uv run python -m src.run p1`, then open `figures/p1_fits.pdf`, `p1_loss.pdf`, `p1_lr.pdf`.
+1. `uv run python -m src.run p1 --out /tmp/demo`, then open, in `/tmp/demo/figures/`,
+   `p1_fits.pdf`, `p1_loss.pdf`, `p1_lr.pdf`.
 2. In the notebook, the "Try it" cell: set `eta = 1.0` (E hits the floor after one epoch), then
    `2.0` (E never moves), then `2.1` (E grows).
 3. Show `gd` and `batches` in `src/p1.py`, and the `/ len(idx)` that makes Mini-batch slower.
@@ -128,6 +138,9 @@ the gap between the two closed forms themselves, QR and lstsq's SVD, well within
 - *What happens at η = 2?* Pure oscillation between 0 and 2α*; E is constant.
 - *Why is ‖w_GD − w_closed‖ not smaller?* GD matches the QR closed form to about 10⁻¹⁰; the
   4.1 × 10⁻⁶ is the QR vs. SVD gap, rounding amplified by κ(Φ), and tiny next to ‖w‖.
+- *Why is GD's final E (10⁻³⁰ to 10⁻²⁹) so far below the closed form's (7 × 10⁻²³)?* Different
+  coordinates: GD's E is ½‖Qα − t‖². Computed as ½‖Φw − t‖² from its w, GD's is 2 to 4 × 10⁻²²
+  too; Φw sums terms up to 7 × 10⁴ that cancel, which costs rounding.
 - *Why are the d = 9 weights so large?* Interpolating noise with nearly parallel monomial columns
   needs large coefficients that cancel.
 - *Which seed?* 42, a fresh `default_rng(42)` per run.
@@ -135,7 +148,10 @@ the gap between the two closed forms themselves, QR and lstsq's SVD, well within
 ## Likely code changes
 
 - Different η, epoch count or batch size: `ETA`, `EPOCHS`, `BATCH` at the top of `src/p1.py`.
-  `batches` handles any remainder (size 4 gives 4, 4, 2).
+  `batches` handles any remainder (size 4 gives 4, 4, 2). Keep `EPOCHS` ≥ 100: the per-epoch
+  factor is measured over the first 100 epochs. A variant that never gets below 10⁻¹² (Mini-batch
+  at η = 0.01, say) reports `epochs_to_1e-12` as null, which the notebook and a rebuilt report
+  print as None.
 - The learning-rate study: `LR_CASES` (label to η) and `LR_EPOCHS`. To show η = 2 as well, add an
   entry such as `"oscillating": 2.0` and a fourth colour in `lr_figure` (it zips the cases with
   three colours, strictly).

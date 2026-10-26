@@ -51,8 +51,8 @@ as ‖w − w_closed‖ / ‖w_closed‖ < 10⁻⁶. It records Ẽ and that rel
   λ ∈ [3.16 × 10⁻⁸, 1.78 × 10⁻⁶] (8 grid points). Past it, test RMSE rises to a shallow peak of
   1.066× the minimum at λ = 10⁻⁵, then dips again, so the isolated grid point λ = 10⁻⁴ (1.046×)
   meets the 1.05× rule too (`flat`: `lam_lo`, `lam_hi`, `n_run`, `others`, `peak_lam`,
-  `peak_ratio`). Overall test RMSE stays within 1.07× of its minimum from about 3 × 10⁻⁸ to
-  2 × 10⁻⁴, almost four decades: a flat minimum.
+  `peak_ratio`). Overall test RMSE stays within 1.07× of its minimum from 3.16 × 10⁻⁸ to 10⁻⁴
+  (as the report says; 1.78 × 10⁻⁴ is still at 1.053×), three and a half decades: a flat minimum.
 - Below the interval the penalty is too weak and the polynomial chases the noise: at λ = 10⁻¹⁰
   train RMSE is 0.016, test 0.161, ‖w‖ ≈ 3979. Above it, test RMSE stays near 0.12 up to about
   10⁻⁴; then the weights are shrunk so hard that the fit flattens, and train and test RMSE rise
@@ -72,7 +72,8 @@ penalty makes those expensive.
 
 ## Demo
 
-1. `uv run python -m src.run p2`; open `p2_gd.pdf`, `p2_rmse.pdf`, `p2_fits.pdf`.
+1. `uv run python -m src.run p2 --out /tmp/demo`; open, in `/tmp/demo/figures/`, `p2_gd.pdf`,
+   `p2_rmse.pdf`, `p2_fits.pdf`.
 2. Point at the iteration count on the right panel of `p2_gd`, and on `p2_rmse` at λ*, the flat
    valley around it and the second shallow dip at 10⁻⁴ (`flat` in `results/p2.json`).
 3. Show `ridge` in `src/common/linalg.py` (a solve, no inverse) and the update line in `ridge_gd`.
@@ -83,10 +84,11 @@ penalty makes those expensive.
 - *Why is (ΦᵀΦ + λI) always invertible?* All its eigenvalues are ≥ λ > 0.
 - *Why does GD work here but not on plain least squares in this basis?* κ drops from ~10¹⁴ to
   ~10³, and the rate is set by 1 − ηλ_min.
-- *How was η chosen / what is the largest safe η?* 2/λ_max(ΦᵀΦ + λI) ≈ 0.098.
+- *How was η chosen / what is the largest safe η?* The handout fixes η = 0.04, which is safe
+  because it is below 2/λ_max(ΦᵀΦ + λI) ≈ 0.098, the largest stable step.
 - *Why 28 227 iterations?* ln(10⁶)/(ηλ) ≈ 35 000 is the worst case.
-- *Sharp or flat minimum?* Flat: test RMSE is within 1.07× of its minimum over almost four
-  decades of λ.
+- *Sharp or flat minimum?* Flat: test RMSE is within 1.07× of its minimum over three and a half
+  decades of λ (3.16 × 10⁻⁸ to 10⁻⁴).
 - *Why is the 1.05× set not one interval?* Test RMSE rises to a shallow peak (1.066× at
   λ = 10⁻⁵) and dips again, so λ = 10⁻⁴ (1.046×) qualifies too. Report both pieces: the run
   [3.16 × 10⁻⁸, 1.78 × 10⁻⁶] around λ* and the single point 10⁻⁴. The bump is small (0.122
@@ -99,9 +101,12 @@ penalty makes those expensive.
 ## Likely code changes
 
 - GD at another λ or η: `GD_LAM`, `GD_ETA` in `src/p2.py`. A larger λ converges faster (better
-  conditioned: 2 963 iterations at λ = 0.1, 286 at λ = 1). η above 0.098 diverges, and
-  `ridge_gd` has no iteration cap: it runs until w overflows to nan (about 19 000 iterations at
-  η = 0.1).
+  conditioned: 2 963 iterations at λ = 0.1, 286 at λ = 1); a smaller one is slow, up to
+  ln(10⁶)/(ηλ) iterations: 259 580 at λ = 10⁻³ (a few seconds), and minutes below 10⁻⁴. η above
+  0.098 diverges, and `ridge_gd` has no iteration cap: it runs until w overflows to nan (about
+  19 000 iterations at η = 0.1). Show that one in the notebook (`p2.GD_ETA = 0.1`, then
+  `r2 = p2.compute()` and `show(p2, r2)`): `src.run` would write nan into `p2.json` and then fail
+  formatting it for the report.
 - A tighter or looser stopping rule: `GD_TOL`.
 - A different λ grid: `LAMS`; a different band, say 1.1×: `WITHIN`; other overfit and underfit
   panels: `PANELS`.

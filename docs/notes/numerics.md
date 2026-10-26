@@ -66,7 +66,8 @@ conditioning has not gone away; it moved into R (κ(R) = κ(Φ)), and it shows u
 in w = R⁻¹ α. GD reaches the QR solution R⁻¹Qᵀt to within about 10⁻¹⁰, but that solution and
 lstsq's SVD one differ by 4.1 × 10⁻⁶ (relative 3.7 × 10⁻¹¹): all of P1's verification error is
 this gap between two closed forms, well within the κ(Φ) ε ≈ 3 × 10⁻⁹ relative error that
-rounding allows (ε ≈ 2.2 × 10⁻¹⁶, below).
+rounding allows (ε ≈ 2.2 × 10⁻¹⁶, below). Being rounding, the gap's digits are this machine's:
+another BLAS changes them, which is why the report prints such values to one significant figure.
 
 ## The floating-point floor
 
@@ -74,8 +75,8 @@ Doubles carry about 16 significant digits (machine epsilon ≈ 2.2 × 10⁻¹⁶
 at most u ≈ 1.1 × 10⁻¹⁶, the unit roundoff). Each update of α leaves a few u of rounding in it,
 so the residual Qα − t (|t| ≈ 1) keeps a few × 10⁻¹⁶ in each of its ten entries, and E = ½‖r‖²
 stops falling there. In P1, Batch (one update per epoch) flattens near 10⁻³⁰ (7.0 × 10⁻³¹ after
-2000 epochs); SGD and Mini-batch (ten and four updates per epoch) carry more rounding and flatten
-near 10⁻²⁹ (1.4 and 1.6 × 10⁻²⁹).
+2000 epochs on this machine); SGD and Mini-batch (ten and four updates per epoch) carry more
+rounding and flatten near 10⁻²⁹ (1.4 and 1.6 × 10⁻²⁹).
 
 Two runs that are mathematically identical (SGD and Batch in P1) agree only up to rounding: their
 E values differ by around 10⁻¹⁶ √E, so the *relative* difference grows as E shrinks, and at the

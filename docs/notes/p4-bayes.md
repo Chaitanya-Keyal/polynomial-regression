@@ -38,8 +38,8 @@ var = 1 / BETA + (G.T * np.linalg.solve(A, G.T)).sum(axis=0)  # G = monomial(x, 
 ```
 
 S_N is never formed: `solve(A, G.T)` gives S_N φ(x) for every x at once, and summing its product
-with φ(x) gives φ(x)ᵀ S_N φ(x). `tests/test_p4.py` checks A m_N = βΦᵀt, the predictive mean and
-variance, and that m_N equals `ridge(Phi, t, ALPHA / BETA)`.
+with φ(x) gives φ(x)ᵀ S_N φ(x). `tests/test_p4.py` checks A = αI + βΦᵀΦ, A m_N = βΦᵀt, the
+predictive mean and variance, and that m_N equals `ridge(Phi, t, ALPHA / BETA)`.
 
 ## Why more data narrows the band, down to a floor
 
@@ -66,8 +66,9 @@ variance, and that m_N equals `ridge(Phi, t, ALPHA / BETA)`.
 
 ## Demo
 
-1. `uv run python -m src.run p4`; open `p4_predictive.pdf` (the dashed MAP curve sits on the mean)
-   and `p4_width.pdf` (four curves stepping down to the floor).
+1. `uv run python -m src.run p4 --out /tmp/demo`; open, in `/tmp/demo/figures/`,
+   `p4_predictive.pdf` (the dashed MAP curve sits on the mean) and `p4_width.pdf` (four curves
+   stepping down to the floor).
 2. In `results/p4.json`: `w_map_minus_m_N` and the `width` table (the parameter share falls as N
    grows).
 
@@ -94,5 +95,6 @@ variance, and that m_N equals `ridge(Phi, t, ALPHA / BETA)`.
 
 - α, β or the degree: `ALPHA`, `BETA`, `D` in `src/p4.py` (everything else follows, including
   λ = α/β and the floor).
-- A 99% band: change `Z` to 2.576.
+- A 99% band: change `Z` to 2.576, and the "95%" and "1.96" in the labels of
+  `predictive_figure` and `width_figure`.
 - Plot the parameter term alone: `var - 1 / BETA`, with `var` from `predictive`.

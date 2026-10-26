@@ -21,7 +21,7 @@ handout's reference w*.
   and the unregularised fit is the same function.
 - Conditioning: κ(ΦᵀΦ) ≈ 6.1 × 10² instead of 2.3 × 10¹⁴, because Legendre polynomials are
   orthogonal on [−1, 1] and their columns are nearly uncorrelated. Ridge's penalty fixed
-  conditioning in P2; the L1 term adds no curvature (|w| is flat away from 0), so without a better
+  conditioning in P2; the L1 term adds no curvature (|w| is linear away from 0), so without a better
   basis subgradient descent would crawl for small λ.
 - The penalty is on *these* coefficients: "w₆ = 0" means the P₆ component is zero, not that x⁶
   is missing.
@@ -59,8 +59,9 @@ on the ≈0 ones (must be ≤ 1).
 The handout's E* = 0.2625 and w* come from cyclic coordinate descent: for each j in turn,
 ρ = Φ_jᵀ(r + Φ_j w_j), w_j = S(ρ, λ) / ‖Φ_j‖², where S(z, λ) = sign(z) max(|z| − λ, 0) is
 soft-thresholding (it sets w_j to exactly 0 when |ρ| ≤ λ). `tests/test_p3.py` keeps that solver,
-`lasso_cd`, as an exact reference: subgradient descent must land within 5ηλ of it with the same
-≈ 0 set, and the optimality conditions must hold exactly at its solution. On the data
+`lasso_cd`, as an exact reference: rounded, its solution at λ = 0.1 must be the handout's w* and
+E* (E = 0.262498), subgradient descent must land within 5ηλ of it with the same ≈ 0 set, and the
+optimality conditions must hold exactly at its solution. On the data
 (`results/p3.json`, `check`):
 
 | `check` at λ = 0.1 | value |
@@ -81,7 +82,9 @@ which also confirms that the files and the basis match the handout's.
   (`p3_path`, hollow markers ≈ 0): w₉ first (λ = 0.01), then w₀ and w₆ (0.0158), w₈ (0.0398), w₄
   and w₇ (0.158), w₂ (0.251) and w₅ (0.398); w₁ and w₃ never do on the grid. The order follows
   each column's correlation with the residual, noise included, not parity alone: the noise in ten
-  points keeps w₂ and w₄ alive longer than w₇.
+  points keeps w₂ alive longer than w₇, which carries a little signal. On the exact Lasso path
+  (coordinate descent) w₇ reaches 0 at λ ≈ 0.12, w₄ at ≈ 0.22 and w₂ at ≈ 0.28; on the grid w₄
+  and w₇ count as ≈ 0 together at 0.158, where w₄ = 0.011 is already inside the 2ηλ = 0.016 band.
 - **Why L2 does not**: the gradient of λ/2 w_j² is λ w_j, which vanishes at 0. The pull toward zero
   weakens as the coefficient shrinks, so it never quite gets there unless Φ_jᵀ r = 0 exactly.
 - **Geometry**: minimise SSE subject to ‖w‖ ≤ c. The ℓ1 ball is a diamond with corners on the axes;
@@ -105,24 +108,26 @@ on fewer coefficients and fits the test set better:
 
 ## Demo
 
-1. `uv run python -m src.run p3` (about 4 s); open `p3_convergence.pdf` (the right panel is
-   E − E*, the gap to the handout's 0.2625, where the rises show), `p3_path.pdf`, `p3_rmse.pdf`,
-   `p3_fits.pdf`.
+1. `uv run python -m src.run p3 --out /tmp/demo` (about 4 s); open, in `/tmp/demo/figures/`,
+   `p3_convergence.pdf` (the right panel is E − E*, the gap to the handout's 0.2625, where the
+   rises show), `p3_path.pdf`, `p3_rmse.pdf`, `p3_fits.pdf`.
 2. In `results/p3.json`, `check`: `E_final` vs. the reference 0.2625, `w_minus_w_ref`, and the two
    `optimality` numbers.
 3. Show the update line in `subgradient_descent` and `near_zero`.
 
 ## Likely viva questions
 
-- *Why no closed form?* |w| is not differentiable at 0; the optimality condition is a set
-  inclusion, not an equation.
+- *Why no closed form?* No general one: |w| is not differentiable at 0, and the optimality
+  condition is a set inclusion, not an equation. With orthonormal columns (ΦᵀΦ = I) there is
+  one: soft-thresholding, w_j = S(Φ_jᵀt, λ).
 - *What is a subgradient?* Any slope of a line through the point that stays below the function.
 - *Why does E go up?* A subgradient step need not decrease E; the sign term overshoots near 0.
 - *Why 2ηλ?* The chatter amplitude is about ηλ; twice that is a safe "zero" band.
 - *Why Legendre?* Same model, κ ≈ 6 × 10² instead of 10¹⁴, and L1 brings no curvature of its own.
 - *Which coefficients go first, and why?* w₉, then w₀ and w₆, w₈, w₄ and w₇, w₂, w₅; w₁ and w₃
   never. The target is odd in u, so its even coefficients are 0 and w₇, w₉ tiny, but with ten
-  noisy points the noise decides part of the order: w₂ and w₄ outlast w₇.
+  noisy points the noise decides part of the order: w₂ outlasts w₇ (on the exact path w₄ does
+  too; on our grid the ≈ 0 band takes w₄ and w₇ at the same λ).
 - *Test RMSE 0.0985 is below the noise level: is the Lasso beating the noise?* No. The 0.1 line is
   the average over fresh data; on this test set even sin(2πx) itself scores 0.091.
 - *How would you get exact zeros?* Coordinate descent / soft-thresholding (`lasso_cd` in
