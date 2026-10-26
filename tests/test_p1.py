@@ -1,7 +1,6 @@
-"""P1's GD family on the assignment's design (N = 10 evenly spaced x, d = 9).
+"""P1's GD family on the provided training set (N = 10 evenly spaced x, d = 9).
 
-Q is then square with orthonormal rows, which pins down every behaviour below exactly. The
-targets are an arbitrary fixed vector: none of this depends on the data.
+Q is then square with orthonormal rows, which pins down every behaviour below exactly.
 """
 
 import numpy as np

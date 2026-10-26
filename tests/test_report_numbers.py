@@ -20,6 +20,10 @@ ROOT = Path(__file__).resolve().parents[1]
         (28131.4, "28131"),
         (15193229.7, r"1.52 \times 10^{7}"),
         (8.26e-11, r"8.26 \times 10^{-11}"),
+        # rounding that crosses a power of ten
+        (0.99996, "1.00"),
+        (0.00099996, "0.00100"),
+        (99999.6, r"1.00 \times 10^{5}"),
     ],
 )
 def test_num(value, expected):

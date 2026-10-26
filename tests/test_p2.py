@@ -1,4 +1,4 @@
-"""P2's ridge GD and the 1.05x band, on the assignment's design and an arbitrary fixed target."""
+"""P2's ridge GD on the provided training set, and the 1.05x band by hand."""
 
 import numpy as np
 

@@ -1,17 +1,19 @@
-"""P4's posterior and predictive distribution against the formulas, on an arbitrary target."""
+"""P4's posterior and predictive distribution against the formulas, on the N = 10 training set."""
 
 import numpy as np
 
 from src import p4
 from src.common.bases import monomial
+from src.common.data import load
 from src.common.linalg import ridge
-from tests import T, X
 
+X, T = load(f"p4_train_N{p4.MAIN_N}.csv")
 PHI = monomial(X, p4.D)
 
 
 def test_posterior_and_predictive():
     m, A = p4.posterior(PHI, T)
+    np.testing.assert_allclose(A, p4.ALPHA * np.eye(p4.D + 1) + p4.BETA * PHI.T @ PHI)  # S_N^-1
     np.testing.assert_allclose(A @ m, p4.BETA * PHI.T @ T)  # m_N = beta S_N Phi^T t
     x = np.linspace(0, 1, 7)
     mean, var = p4.predictive(x, m, A)

@@ -1,11 +1,11 @@
-"""P3's subgradient descent against an exact Lasso solver, on the assignment's design and an
-arbitrary fixed target."""
+"""P3's subgradient descent against an exact Lasso solver, on the provided training set."""
 
 import numpy as np
 import pytest
 
 from src import p3
 from src.common.bases import legendre
+from src.common.metrics import lasso_objective
 from tests import T, X
 
 PHI = legendre(X, p3.D)
@@ -29,8 +29,15 @@ def test_subgradient_lands_within_the_chatter_of_the_exact_solution(lam):
     np.testing.assert_array_equal(p3.near_zero(w, lam), p3.near_zero(w_exact, lam))
 
 
+def test_exact_solution_is_the_handout_reference():
+    # w* and E* in the handout are this solution rounded to three and four decimals
+    w = lasso_cd(p3.CHECK_LAM)
+    np.testing.assert_array_equal(np.round(w, 3), p3.W_REF)
+    assert lasso_objective(PHI, w, T, p3.CHECK_LAM) == pytest.approx(p3.E_REF, abs=5e-5)
+
+
 def test_optimality_conditions_hold_exactly_at_the_exact_solution():
-    w = lasso_cd(0.1)
-    report = p3.optimality(PHI, T, w, 0.1)
+    w = lasso_cd(p3.CHECK_LAM)
+    report = p3.optimality(PHI, T, w, p3.CHECK_LAM)
     assert report["max_active_violation"] < 1e-9
-    assert report["max_zero_ratio"] <= 1 + 1e-9  # w_1 = -0.0009 is nonzero but ≈ 0: ratio 1
+    assert report["max_zero_ratio"] <= 1
