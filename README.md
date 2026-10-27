@@ -25,6 +25,7 @@ tests/                       hand-worked checks of the solvers and of each probl
 report/                      report.tex, the write-up, and report.pdf built from it
 notebooks/demo.ipynb         the demo: each problem's figures and key numbers, by calling src/
 docs/notes/                  study notes: the maths, the code, the demo, likely viva questions
+README.txt                   the submission's readme: group, versions, how to run, open choices
 pyproject.toml, uv.lock      dependencies; .python-version pins Python 3.12
 ```
 
@@ -79,3 +80,13 @@ uv run --group notebook jupyter lab notebooks/demo.ipynb
 The report reads every number through `\res{key}` from `results/numbers.tex`, so rerunning
 `src.run` and rebuilding updates it. The notebook has no logic of its own: it calls the same
 `compute()` and `figures()` as `src.run`, and is committed without outputs to be run live.
+
+## 6. Submission
+
+```bash
+git archive --format=zip -o ../submission/2023B4A70727H_A1.zip HEAD -- README.txt \
+  pyproject.toml uv.lock .python-version src tests notebooks data results figures report
+```
+
+The zip holds the committed files, flat at its root, dated by the commit, so the same commit
+always gives the same bytes. It leaves out this README, the handout and `docs/notes/`.
