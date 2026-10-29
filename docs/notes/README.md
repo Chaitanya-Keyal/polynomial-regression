@@ -17,5 +17,5 @@ them in this order:
 
 Every problem file opens with an In short, then follows the same order: the maths, the code, the
 demo, likely viva questions with answers, and the code changes most likely to be asked for (with
-where to make them). Try changes in the notebook, or run them with `src.run --out /tmp/demo`: a
+where to make them). Make changes in the notebook, or run them with `src.run --out /tmp/demo`: a
 plain `src.run` overwrites the committed results and figures.

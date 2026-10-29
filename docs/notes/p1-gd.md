@@ -117,9 +117,7 @@ that cancel, so it carries rounding of about 10⁻¹¹.
 
 1. `uv run python -m src.run p1 --out /tmp/demo`, then open, in `/tmp/demo/figures/`,
    `p1_fits.pdf`, `p1_loss.pdf`, `p1_lr.pdf`.
-2. In the notebook, the "Try it" cell: set `eta = 1.0` (E hits the floor after one epoch), then
-   `2.0` (E never moves), then `2.1` (E grows).
-3. Show `gd` and `batches` in `src/p1.py`, and the `/ len(idx)` that makes Mini-batch slower.
+2. Show `gd` and `batches` in `src/p1.py`, and the `/ len(idx)` that makes Mini-batch slower.
 
 ## Likely viva questions
 
